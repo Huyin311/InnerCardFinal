@@ -11,12 +11,12 @@ import {
   Platform,
   StatusBar,
 } from "react-native";
-import { Colors } from "../constants/Colors";
-import CustomTabBar from "../components/CustomTabBar";
+import { Colors } from "../../constants/Colors";
+import CustomTabBar from "../../components/CustomTabBar";
 
 const user = {
   name: "Kristin",
-  avatar: require("../assets/images/avatar.png"),
+  avatar: require("../../assets/images/avatar.png"),
 };
 
 const learningToday = {

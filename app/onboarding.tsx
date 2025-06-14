@@ -1,4 +1,3 @@
-//app/onboarding.tsx
 import React from "react";
 import { View } from "react-native";
 import OnboardingSlider from "../components/ui/OnboardingSlider";

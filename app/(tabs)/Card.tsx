@@ -18,25 +18,25 @@ const categories = [
     id: "1",
     title: "Language",
     color: "#E8F1FF",
-    image: require("../assets/images/avatar.png"),
+    image: require("../../assets/images/avatar.png"),
   },
   {
     id: "2",
     title: "Painting",
     color: "#FFF4E4",
-    image: require("../assets/images/avatar.png"),
+    image: require("../../assets/images/avatar.png"),
   },
   {
     id: "3",
     title: "Language",
     color: "#E8F1FF",
-    image: require("../assets/images/avatar.png"),
+    image: require("../../assets/images/avatar.png"),
   },
   {
     id: "4",
     title: "Painting",
     color: "#FFF4E4",
-    image: require("../assets/images/avatar.png"),
+    image: require("../../assets/images/avatar.png"),
   },
 ];
 
@@ -47,7 +47,7 @@ const cards = [
     author: "Robertson Connie",
     price: "$190",
     duration: "16 hours",
-    image: require("../assets/images/avatar.png"),
+    image: require("../../assets/images/avatar.png"),
   },
   {
     id: "2",
@@ -55,7 +55,7 @@ const cards = [
     author: "Nguyen Shane",
     price: "$190",
     duration: "16 hours",
-    image: require("../assets/images/avatar.png"),
+    image: require("../../assets/images/avatar.png"),
   },
   {
     id: "3",
@@ -63,7 +63,7 @@ const cards = [
     author: "Bert Pullman",
     price: "$250",
     duration: "14 hours",
-    image: require("../assets/images/avatar.png"),
+    image: require("../../assets/images/avatar.png"),
   },
 ];
 
@@ -93,7 +93,7 @@ export default function Card() {
         <Text style={styles.title}>Card</Text>
         <TouchableOpacity>
           <Image
-            source={require("../assets/images/avatar.png")}
+            source={require("../../assets/images/avatar.png")}
             style={styles.avatar}
           />
         </TouchableOpacity>
