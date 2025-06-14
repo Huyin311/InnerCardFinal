@@ -11,8 +11,8 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "../constants/Colors";
 
 const ICON_MAP = {
-  Home: (color) => <Ionicons name="home-outline" size={28} color={color} />,
-  Card: (color) => <MaterialIcons name="credit-card" size={28} color={color} />,
+  Home: (color) => <Ionicons name="home" size={28} color={color} />,
+  Card: (color) => <MaterialIcons name="style" size={28} color={color} />,
 };
 
 const width = Dimensions.get("window").width;
