@@ -1,5 +1,3 @@
-import { NavigationContainer } from "@react-navigation/native";
-import { createStackNavigator } from "@react-navigation/stack";
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -17,6 +15,7 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 const categories = [
   {
@@ -92,16 +91,17 @@ const filterDurations = [
 const { height } = Dimensions.get("window");
 
 export default function Card() {
+  const router = useRouter();
   const [selectedTab, setSelectedTab] = useState("All");
   const [filterVisible, setFilterVisible] = useState(false);
 
   // Filter modal state
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([
+  const [selectedCategories, setSelectedCategories] = useState([
     "Design",
     "Coding",
   ]);
   const [selectedDuration, setSelectedDuration] = useState("3-8 Hours");
-  const [priceRange, setPriceRange] = useState<[number, number]>([90, 200]);
+  const [priceRange, setPriceRange] = useState([90, 200]);
 
   // Animated overlay & content
   const overlayAnim = useRef(new Animated.Value(0)).current;
@@ -150,7 +150,7 @@ export default function Card() {
   };
 
   // Toggle category selection in filter modal
-  const toggleCategory = (cat: string) => {
+  const toggleCategory = (cat) => {
     setSelectedCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
     );
@@ -255,10 +255,7 @@ export default function Card() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.cardItem}
-              onPress={() => {
-                // Xử lý chuyển màn hình ở đây, ví dụ:
-                navigation.navigate("CardDetail"); // , { cardId: item.id }
-              }}
+              onPress={() => router.push("/tabs/CardPay")}
             >
               <View style={styles.cardImageBox}>
                 <View style={styles.cardImagePlaceholder} />
@@ -539,28 +536,6 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   cardDuration: { fontSize: 13, color: "#FF6D00", fontWeight: "600" },
-  tabBar: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    shadowColor: "#222",
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 10,
-    paddingTop: 6,
-    paddingBottom: 8,
-    paddingHorizontal: 10,
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  tabBarItem: { flex: 1, alignItems: "center", justifyContent: "center" },
-  tabBarLabel: { fontSize: 12, color: "#BFC8D6", marginTop: 2 },
-  tabBarItemActive: {},
-  tabBarLabelActive: { color: "#3B5EFF", fontWeight: "bold" },
-
   // Modal & Overlay
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   modalOverlay: {

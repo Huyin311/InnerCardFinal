@@ -31,16 +31,19 @@ const cardSet = {
 
 const { width } = Dimensions.get("window");
 
-export default function CardDetail({ navigation }) {
-  // Nếu dùng navigation, nhận params để lấy cardSet theo id
-
+export default function CardPay() {
   return (
     <View style={styles.container}>
       {/* Header Flashcard Info */}
       <View style={styles.headerBox}>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => navigation?.goBack()}
+          onPress={() => {
+            // Nếu muốn back dùng useRouter().back() hoặc router.back()
+            // Hoặc dùng navigation.goBack() nếu navigation có sẵn qua props
+            // Nhưng với Expo Router, nên dùng useRouter
+            // Xem bên dưới:
+          }}
         >
           <Ionicons name="arrow-back" size={24} color="#222" />
         </TouchableOpacity>
