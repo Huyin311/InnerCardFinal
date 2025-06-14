@@ -1,25 +1,38 @@
-import React from "react";
-import { View } from "react-native";
-import OnboardingSlider from "../../components/OnboardingSlider";
+//app/index.tsx
+import React, { useEffect, useState } from "react";
+import { View, ActivityIndicator } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 
-const OnboardingScreen = () => {
+export default function Root() {
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  return (
-    <View style={{ flex: 1 }}>
-      <OnboardingSlider
-        onFinish={() => router.replace("/login")}
-        onSignUp={() => router.replace("/signup")}
-        onLogin={() => router.replace("/login")}
-      />
-    </View>
-  );
-};
+  useEffect(() => {
+    // RESET ONBOARDING FOR TEST PURPOSES
+    AsyncStorage.removeItem("hasSeenOnboarding").then(() => {
+      console.log("Reset hasSeenOnboarding!");
+    });
 
-export default OnboardingScreen;
+    (async () => {
+      const hasSeenOnboarding = await AsyncStorage.getItem("hasSeenOnboarding");
+      console.log("hasSeenOnboarding:", hasSeenOnboarding);
+      if (hasSeenOnboarding === "true") {
+        router.replace("/login");
+      } else {
+        router.replace("/onboarding");
+      }
+      setLoading(false);
+    })();
+  }, []);
 
-// Cách này chỉ hoạt động nếu bạn dùng expo-router >= 2.0.0 và file layout support
-export const options = {
-  headerShown: true,
-};
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  return null;
+}

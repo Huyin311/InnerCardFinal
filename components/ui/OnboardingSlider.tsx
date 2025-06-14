@@ -1,3 +1,4 @@
+//components/ui/OnboardingSlider.tsx
 import React from "react";
 import {
   View,
@@ -8,7 +9,7 @@ import {
   TouchableOpacity,
   useColorScheme,
 } from "react-native";
-import { Colors } from "../constants/Colors";
+import { Colors } from "../../constants/Colors";
 
 const { width } = Dimensions.get("window");
 
@@ -18,21 +19,21 @@ const slides = [
     title: "Thousands of free flashcard sets",
     description:
       "Explore a wide variety of flashcard sets to help you learn any subject.",
-    image: require("../assets/onboarding1.png"),
+    image: require("../../assets/images/onboarding1.png"),
   },
   {
     key: "slide2",
     title: "Learn anytime, anywhere",
     description:
       "Practice your flashcards on the go and easily track your learning progress.",
-    image: require("../assets/onboarding2.png"),
+    image: require("../../assets/images/onboarding2.png"),
   },
   {
     key: "slide3",
     title: "Personalize your study plan",
     description:
       "Create your own flashcard sets and customize your learning for the best results.",
-    image: require("../assets/onboarding3.png"),
+    image: require("../../assets/images/onboarding3.png"),
   },
 ];
 
@@ -129,8 +130,9 @@ const OnboardingSlider: React.FC<Props> = ({ onFinish, onSignUp, onLogin }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 48,
     alignItems: "center",
+    justifyContent: "center", // căn giữa dọc
+    // paddingTop: 48, // có thể bỏ hoặc giữ lại nếu muốn khoảng cách trên
   },
   skip: {
     position: "absolute",
