@@ -255,7 +255,7 @@ export default function Card() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.cardItem}
-              onPress={() => router.push("/tabs/CardPay")}
+              onPress={() => router.push("/TestCDT")}
             >
               <View style={styles.cardImageBox}>
                 <View style={styles.cardImagePlaceholder} />

@@ -16,7 +16,7 @@ const cardSet = {
   name: "IELTS Vocabulary Mastery",
   price: 49,
   isBestseller: true,
-  cover: require("../../assets/images/avatar.png"),
+  cover: require("../assets/images/avatar.png"),
   description:
     "Bộ flashcard giúp bạn hệ thống toàn bộ từ vựng IELTS, chia chủ đề dễ học, kèm mẹo ghi nhớ và ví dụ thực tế.",
   totalCards: 150,
@@ -31,7 +31,7 @@ const cardSet = {
 
 const { width } = Dimensions.get("window");
 
-export default function CardPay() {
+export default function CardDetail() {
   return (
     <View style={styles.container}>
       {/* Header Flashcard Info */}
