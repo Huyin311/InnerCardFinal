@@ -10,8 +10,14 @@ import {
   Platform,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RootStackParamList } from "../../AppNavigator"; // Đường dẫn tuỳ dự án
 
-export default function LoginForm({ navigation }) {
+type Props = {
+  navigation: StackNavigationProp<RootStackParamList, "Login">;
+};
+
+export default function LoginForm({ navigation }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -69,7 +75,7 @@ export default function LoginForm({ navigation }) {
   );
 }
 
-// ... giữ nguyên phần styles ...
+// ... phần styles giữ nguyên ...
 
 const styles = StyleSheet.create({
   // ... giữ nguyên phần styles của bạn ...

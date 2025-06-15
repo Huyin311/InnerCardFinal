@@ -1,3 +1,4 @@
+//components/Auth/SignupForm.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -9,13 +10,17 @@ import {
   Platform,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
-import { useRouter } from "expo-router";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RootStackParamList } from "../../AppNavigator"; // chỉnh lại đường dẫn nếu cần
 
-export default function SignupForm() {
+type Props = {
+  navigation: StackNavigationProp<RootStackParamList, "Signup">;
+};
+
+export default function SignupForm({ navigation }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
 
   return (
     <KeyboardAvoidingView
@@ -55,7 +60,7 @@ export default function SignupForm() {
       </View>
       <TouchableOpacity
         style={styles.button}
-        onPress={() => router.replace("/login")}
+        onPress={() => navigation.replace("Login")}
       >
         <Text style={styles.buttonText}>Create account</Text>
       </TouchableOpacity>
@@ -67,7 +72,7 @@ export default function SignupForm() {
       </View>
       <View style={styles.row}>
         <Text style={styles.grayText}>Already have an account ? </Text>
-        <Text style={styles.link} onPress={() => router.replace("/login")}>
+        <Text style={styles.link} onPress={() => navigation.replace("Login")}>
           Log in
         </Text>
       </View>
@@ -76,6 +81,7 @@ export default function SignupForm() {
 }
 
 const styles = StyleSheet.create({
+  // ...giữ nguyên phần styles của bạn...
   card: {
     width: 350,
     backgroundColor: Colors.light.background,

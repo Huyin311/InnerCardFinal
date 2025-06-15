@@ -1,10 +1,13 @@
-//app/login.tsx
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import LoginForm from "../components/Auth/LoginForm";
 import { Colors } from "../constants/Colors";
+import type { StackScreenProps } from "@react-navigation/stack";
+import type { RootStackParamList } from "../AppNavigator"; // Đường dẫn tuỳ repo bạn
 
-export default function LoginScreen({ navigation }) {
+type Props = StackScreenProps<RootStackParamList, "Login">;
+
+export default function LoginScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <LoginForm navigation={navigation} />

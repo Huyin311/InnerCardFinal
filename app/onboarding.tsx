@@ -1,23 +1,32 @@
 import React from "react";
 import { View } from "react-native";
 import OnboardingSlider from "../components/ui/OnboardingSlider";
-import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RouteProp } from "@react-navigation/native";
+import { RootStackParamList } from "../AppNavigator";
 
-const OnboardingScreen = () => {
-  const router = useRouter();
+type OnboardingScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "Onboarding"
+>;
 
+type OnboardingScreenProps = {
+  navigation: OnboardingScreenNavigationProp;
+  route: RouteProp<RootStackParamList, "Onboarding">;
+};
+
+const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
   const finishOnboarding = async () => {
-    await AsyncStorage.setItem("hasSeenOnboarding", "true");
-    router.replace("/login");
+    // ... lưu AsyncStorage nếu cần
+    navigation.replace("Login");
   };
 
   return (
     <View style={{ flex: 1 }}>
       <OnboardingSlider
         onFinish={finishOnboarding}
-        onSignUp={() => router.replace("/signup")}
-        onLogin={() => router.replace("/login")}
+        onSignUp={() => navigation.replace("Signup")}
+        onLogin={() => navigation.replace("Login")}
       />
     </View>
   );
