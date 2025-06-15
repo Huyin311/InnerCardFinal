@@ -15,7 +15,7 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useNavigation } from "@react-navigation/native";
 
 const categories = [
   {
@@ -91,7 +91,7 @@ const filterDurations = [
 const { height } = Dimensions.get("window");
 
 export default function Card() {
-  const router = useRouter();
+  const navigation = useNavigation();
   const [selectedTab, setSelectedTab] = useState("All");
   const [filterVisible, setFilterVisible] = useState(false);
 
@@ -255,7 +255,7 @@ export default function Card() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.cardItem}
-              onPress={() => router.push("/ScreenDetail/CardDetail")}
+              onPress={() => navigation.navigate("CardDetail")}
             >
               <View style={styles.cardImageBox}>
                 <View style={styles.cardImagePlaceholder} />

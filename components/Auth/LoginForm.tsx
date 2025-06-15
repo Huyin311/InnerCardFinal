@@ -10,13 +10,13 @@ import {
   Image,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
-import { useRouter } from "expo-router";
+import { useNavigation } from "@react-navigation/native";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
+  const navigation = useNavigation();
 
   return (
     <KeyboardAvoidingView
@@ -56,13 +56,14 @@ export default function LoginForm() {
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.button}
-        onPress={() => router.replace("/home")}
+        // Sử dụng navigation thay vì router
+        onPress={() => navigation.navigate("tabs")}
       >
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
       <View style={styles.row}>
         <Text style={styles.grayText}> Don&#39;t have an account? </Text>
-        <Text style={styles.link} onPress={() => router.replace("/signup")}>
+        <Text style={styles.link} onPress={() => navigation.navigate("signup")}>
           Sign up
         </Text>
       </View>
@@ -84,6 +85,7 @@ export default function LoginForm() {
 }
 
 const styles = StyleSheet.create({
+  // ... giữ nguyên phần styles của bạn ...
   card: {
     width: 350,
     backgroundColor: Colors.light.background,
