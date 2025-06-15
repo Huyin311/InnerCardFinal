@@ -4,10 +4,10 @@ import { View, StyleSheet } from "react-native";
 import LoginForm from "../components/Auth/LoginForm";
 import { Colors } from "../constants/Colors";
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
   return (
     <View style={styles.container}>
-      <LoginForm />
+      <LoginForm navigation={navigation} />
     </View>
   );
 }
