@@ -1,4 +1,3 @@
-//app/tabs/Card.tsx
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -17,92 +16,81 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import type { RootStackParamList } from "../../AppNavigator";
 
+// Danh mục bộ thẻ (có thể sửa lại cho phù hợp app thực tế)
 const categories = [
   {
     id: "1",
-    title: "Language",
+    title: "Ngôn ngữ",
     color: "#E8F1FF",
     image: require("../../assets/images/avatar.png"),
   },
   {
     id: "2",
-    title: "Painting",
+    title: "Mỹ thuật",
     color: "#FFF4E4",
     image: require("../../assets/images/avatar.png"),
   },
   {
     id: "3",
-    title: "Language",
+    title: "Lập trình",
     color: "#E8F1FF",
     image: require("../../assets/images/avatar.png"),
   },
   {
     id: "4",
-    title: "Painting",
+    title: "Âm nhạc",
     color: "#FFF4E4",
     image: require("../../assets/images/avatar.png"),
   },
 ];
 
-const cards = [
+// Danh sách các bộ thẻ của người dùng
+const cardSets = [
   {
     id: "1",
-    title: "Product Design v1.0",
-    author: "Robertson Connie",
-    price: "$190",
-    duration: "16 hours",
+    title: "IELTS Vocabulary Mastery",
+    author: "Huy Nguyen",
+    totalCards: 150,
     image: require("../../assets/images/avatar.png"),
   },
   {
     id: "2",
-    title: "Java Development",
-    author: "Nguyen Shane",
-    price: "$190",
-    duration: "16 hours",
+    title: "200 Kanji N5",
+    author: "Huy Nguyen",
+    totalCards: 200,
     image: require("../../assets/images/avatar.png"),
   },
   {
     id: "3",
-    title: "Visual Design",
-    author: "Bert Pullman",
-    price: "$250",
-    duration: "14 hours",
+    title: "Tiếng Anh giao tiếp",
+    author: "Huy Nguyen",
+    totalCards: 90,
     image: require("../../assets/images/avatar.png"),
   },
 ];
 
-const TABS = ["All", "Popular", "New"];
+const TABS = ["Tất cả", "Của tôi", "Đã lưu"];
 const filterCategories = [
-  "Design",
-  "Painting",
-  "Coding",
-  "Music",
-  "Visual identity",
-  "Mathmatics",
-];
-const filterDurations = [
-  "3-8 Hours",
-  "8-14 Hours",
-  "14-20 Hours",
-  "20-24 Hours",
-  "24-30 Hours",
+  "Ngôn ngữ",
+  "Mỹ thuật",
+  "Lập trình",
+  "Âm nhạc",
+  "Toán học",
 ];
 
 const { height } = Dimensions.get("window");
 
 export default function Card() {
-  const navigation = useNavigation();
-  const [selectedTab, setSelectedTab] = useState("All");
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const [selectedTab, setSelectedTab] = useState("Tất cả");
   const [filterVisible, setFilterVisible] = useState(false);
 
   // Filter modal state
-  const [selectedCategories, setSelectedCategories] = useState([
-    "Design",
-    "Coding",
-  ]);
-  const [selectedDuration, setSelectedDuration] = useState("3-8 Hours");
-  const [priceRange, setPriceRange] = useState([90, 200]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [searchText, setSearchText] = useState("");
 
   // Animated overlay & content
   const overlayAnim = useRef(new Animated.Value(0)).current;
@@ -138,20 +126,31 @@ export default function Card() {
     }
   }, [filterVisible]);
 
-  // Lọc card dựa trên tab đang chọn
-  const filterCards = () => {
-    if (selectedTab === "All") return cards;
-    if (selectedTab === "Popular") {
-      return cards.filter((card) => card.price === "$190");
+  // Lọc bộ thẻ dựa trên tab và tìm kiếm
+  const filterCardSets = () => {
+    let result = cardSets;
+    if (selectedTab === "Của tôi") {
+      // Lọc theo user đang đăng nhập, ví dụ:
+      result = result.filter((set) => set.author === "Huy Nguyen");
     }
-    if (selectedTab === "New") {
-      return cards.filter((card) => parseInt(card.duration) < 15);
+    if (selectedTab === "Đã lưu") {
+      // Ở đây demo, thực tế sẽ lọc theo bộ đã lưu
+      result = result.slice(0, 1);
     }
-    return cards;
+    if (selectedCategories.length > 0) {
+      // Demo: không có category trong cardSets, bạn có thể bổ sung trường category cho mỗi set để lọc
+      // result = result.filter(set => selectedCategories.includes(set.category));
+    }
+    if (searchText.trim() !== "") {
+      result = result.filter((set) =>
+        set.title.toLowerCase().includes(searchText.toLowerCase()),
+      );
+    }
+    return result;
   };
 
   // Toggle category selection in filter modal
-  const toggleCategory = (cat) => {
+  const toggleCategory = (cat: string) => {
     setSelectedCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
     );
@@ -160,15 +159,14 @@ export default function Card() {
   // Clear filter
   const clearFilter = () => {
     setSelectedCategories([]);
-    setSelectedDuration("");
-    setPriceRange([90, 200]);
+    setSearchText("");
   };
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Card</Text>
+        <Text style={styles.title}>Bộ Thẻ Của Bạn</Text>
         <TouchableOpacity>
           <Image
             source={require("../../assets/images/avatar.png")}
@@ -187,8 +185,10 @@ export default function Card() {
         />
         <TextInput
           style={styles.searchInput}
-          placeholder="Find Card"
+          placeholder="Tìm bộ thẻ"
           placeholderTextColor="#BFC8D6"
+          value={searchText}
+          onChangeText={setSearchText}
         />
         <TouchableOpacity
           style={styles.filterBtn}
@@ -246,10 +246,10 @@ export default function Card() {
         ))}
       </View>
 
-      {/* Card List */}
+      {/* Card Set List */}
       <View style={{ flex: 1 }}>
         <FlatList
-          data={filterCards()}
+          data={filterCardSets()}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
@@ -259,7 +259,11 @@ export default function Card() {
               onPress={() => navigation.navigate("CardDetail")}
             >
               <View style={styles.cardImageBox}>
-                <View style={styles.cardImagePlaceholder} />
+                <Image
+                  source={item.image}
+                  style={styles.cardImagePlaceholder}
+                  resizeMode="contain"
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>{item.title}</Text>
@@ -280,10 +284,11 @@ export default function Card() {
                     marginTop: 8,
                   }}
                 >
-                  <Text style={styles.cardPrice}>{item.price}</Text>
-                  <View style={styles.cardDurationBox}>
-                    <Text style={styles.cardDuration}>{item.duration}</Text>
-                  </View>
+                  <Ionicons name="layers-outline" size={15} color="#3B5EFF" />
+                  <Text style={styles.cardTotalCards}>
+                    {"  "}
+                    {item.totalCards} thẻ
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -297,7 +302,7 @@ export default function Card() {
               }}
             >
               <Text style={{ color: "#BFC8D6", fontSize: 16 }}>
-                No cards found
+                Không tìm thấy bộ thẻ nào
               </Text>
             </View>
           }
@@ -330,12 +335,12 @@ export default function Card() {
               <TouchableOpacity onPress={() => setFilterVisible(false)}>
                 <Ionicons name="close" size={28} color="#222" />
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Search Filter</Text>
+              <Text style={styles.modalTitle}>Bộ lọc</Text>
               <View style={{ width: 28 }} />
             </View>
 
             {/* Categories */}
-            <Text style={styles.sectionTitle}>Categories</Text>
+            <Text style={styles.sectionTitle}>Danh mục</Text>
             <View style={styles.rowWrap}>
               {filterCategories.map((cat) => (
                 <Pressable
@@ -358,56 +363,18 @@ export default function Card() {
               ))}
             </View>
 
-            {/* Price range (giản lược, chưa có slider thực) */}
-            <Text style={styles.sectionTitle}>Price</Text>
-            <View style={styles.priceRow}>
-              <View style={styles.priceCircle} />
-              <View style={styles.priceLine} />
-              <View style={styles.priceCircle} />
-            </View>
-            <View style={styles.priceLabelRow}>
-              <Text style={styles.priceText}>${priceRange[0]}</Text>
-              <Text style={styles.priceText}>${priceRange[1]}</Text>
-            </View>
-
-            {/* Duration */}
-            <Text style={styles.sectionTitle}>Duration</Text>
-            <View style={styles.rowWrap}>
-              {filterDurations.map((d) => (
-                <Pressable
-                  key={d}
-                  style={[
-                    styles.chip,
-                    selectedDuration === d && styles.chipActive,
-                  ]}
-                  onPress={() => setSelectedDuration(d)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      selectedDuration === d && styles.chipTextActive,
-                    ]}
-                  >
-                    {d}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-
             {/* Buttons */}
             <View style={styles.btnRow}>
               <TouchableOpacity style={styles.clearBtn} onPress={clearFilter}>
                 <Text style={[styles.btnText, { color: "#2C4BFF" }]}>
-                  Clear
+                  Xóa lọc
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.applyBtn}
                 onPress={() => setFilterVisible(false)}
               >
-                <Text style={[styles.btnText, { color: "#fff" }]}>
-                  Apply Filter
-                </Text>
+                <Text style={[styles.btnText, { color: "#fff" }]}>Áp dụng</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -523,20 +490,12 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 17, fontWeight: "bold", color: "#222" },
   cardAuthor: { fontSize: 13, color: "#BFC8D6", marginLeft: 2 },
-  cardPrice: {
-    fontSize: 17,
-    fontWeight: "bold",
+  cardTotalCards: {
+    fontSize: 14,
     color: "#3B5EFF",
-    marginRight: 10,
-  },
-  cardDurationBox: {
-    backgroundColor: "#FFE5D1",
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
     marginLeft: 2,
+    fontWeight: "bold",
   },
-  cardDuration: { fontSize: 13, color: "#FF6D00", fontWeight: "600" },
   // Modal & Overlay
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   modalOverlay: {
@@ -582,36 +541,6 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: "#2C4BFF" },
   chipText: { color: "#b9b9c9", fontWeight: "500", fontSize: 15 },
   chipTextActive: { color: "#fff" },
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 10,
-    marginLeft: 2,
-  },
-  priceCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: "#2C4BFF",
-    backgroundColor: "#fff",
-    zIndex: 2,
-  },
-  priceLine: {
-    flex: 1,
-    height: 3,
-    backgroundColor: "#EAEAEA",
-    marginHorizontal: -7,
-    zIndex: 1,
-    borderRadius: 2,
-  },
-  priceLabelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginHorizontal: 4,
-    marginBottom: 8,
-  },
-  priceText: { fontSize: 17, fontWeight: "600", color: "#222" },
   btnRow: {
     flexDirection: "row",
     marginTop: 18,
