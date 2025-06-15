@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 // Giả lập dữ liệu flashcard
 const cardSet = {
@@ -32,6 +33,7 @@ const cardSet = {
 const { width } = Dimensions.get("window");
 
 export default function CardDetail() {
+  const router = useRouter();
   return (
     <View style={styles.container}>
       {/* Header Flashcard Info */}
@@ -39,10 +41,7 @@ export default function CardDetail() {
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => {
-            // Nếu muốn back dùng useRouter().back() hoặc router.back()
-            // Hoặc dùng navigation.goBack() nếu navigation có sẵn qua props
-            // Nhưng với Expo Router, nên dùng useRouter
-            // Xem bên dưới:
+            router.replace("/Card");
           }}
         >
           <Ionicons name="arrow-back" size={24} color="#222" />
