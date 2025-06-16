@@ -6,6 +6,7 @@ import SignupScreen from "./app/signup";
 import OnboardingScreen from "./app/onboarding";
 import TabsNavigator from "./app/tabs/TabsNavigator";
 import CardDetailScreen from "./app/ScreenDetail/CardDetail";
+import StudyScreen from "./app/tabs/Study"; // Thêm dòng này
 
 export type RootStackParamList = {
   Login: undefined;
@@ -13,6 +14,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Tabs: undefined;
   CardDetail: undefined;
+  Study: undefined; // Thêm dòng này
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -29,7 +31,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Tabs" component={TabsNavigator} />
         <Stack.Screen name="CardDetail" component={CardDetailScreen} />
-        {/* KHÔNG được có {" "} hoặc <View> hoặc bất cứ gì khác */}
+        <Stack.Screen name="Study" component={StudyScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Home from "./home";
 import Card from "./Card";
 import Study from "./Study";
+import Group from "./Group";
 import { Ionicons } from "@expo/vector-icons";
 
 const Tab = createBottomTabNavigator();
@@ -21,6 +22,8 @@ export default function TabsNavigator() {
             iconName = focused ? "albums" : "albums-outline";
           } else if (route.name === "Study")
             iconName = focused ? "book" : "book-outline";
+          else if (route.name === "Group")
+            iconName = focused ? "people" : "people-outline";
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -30,7 +33,8 @@ export default function TabsNavigator() {
     >
       <Tab.Screen name="Home" component={Home} />
       <Tab.Screen name="Card" component={Card} />
-      <Tab.Screen name="Study" component={Study} options={{ title: "Học" }} />
+      <Tab.Screen name="Study" component={Study} />
+      <Tab.Screen name="Group" component={Group} />
     </Tab.Navigator>
   );
 }
