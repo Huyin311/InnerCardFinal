@@ -19,6 +19,7 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 
 const filterCategories = [
   "Ngôn ngữ",
@@ -134,6 +135,7 @@ const groupInvites = [
 const { height, width } = Dimensions.get("window");
 
 export default function Group() {
+  const navigation = useNavigation();
   const [groups, setGroups] = useState(initialGroups);
   const [searchText, setSearchText] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -358,7 +360,13 @@ export default function Group() {
           }}
           renderItem={({ item }) => (
             <View style={styles.cardItemBox}>
-              <TouchableOpacity style={styles.cardItem} activeOpacity={0.82}>
+              <TouchableOpacity
+                style={styles.cardItem}
+                activeOpacity={0.82}
+                onPress={() => {
+                  navigation.navigate("GroupDetail" as never);
+                }}
+              >
                 <View style={styles.cardImageBox}>
                   <Image
                     source={item.avatar}
