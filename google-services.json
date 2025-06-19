@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "824788267602",
+    "project_id": "dbinnercard",
+    "storage_bucket": "dbinnercard.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:824788267602:android:f7ad43664e824d99a6258b",
+        "android_client_info": {
+          "package_name": "com.Huyin311.InnerCard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPvfv6HVUiumAL7L7sWnwmBk-hDLLU8ME"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
