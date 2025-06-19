@@ -1,12 +1,11 @@
 import React from "react";
-import AppNavigator from "./AppNavigator";
 import { DarkModeProvider } from "./app/DarkModeContext";
-import { LanguageProvider } from "./app/LanguageContext"; // Thêm dòng này
+import { LanguageProvider } from "./app/LanguageContext";
+import AppNavigator from "./AppNavigator";
 
 export default function App() {
   return (
     <LanguageProvider>
-      {" "}
       <DarkModeProvider>
         <AppNavigator />
       </DarkModeProvider>
