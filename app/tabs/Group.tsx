@@ -21,6 +21,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
+// Responsive helpers
+const { height, width } = Dimensions.get("window");
+const scale = (size: number) => (width / 375) * size;
+
 const filterCategories = [
   "Ngôn ngữ",
   "Kỹ năng",
@@ -131,8 +135,6 @@ const groupInvites = [
     invited: true,
   },
 ];
-
-const { height, width } = Dimensions.get("window");
 
 export default function Group() {
   const navigation = useNavigation();
@@ -354,9 +356,9 @@ export default function Group() {
           refreshing={refreshing}
           onRefresh={onRefresh}
           contentContainerStyle={{
-            paddingBottom: 24,
+            paddingBottom: scale(24),
             flexGrow: 1,
-            minHeight: 220,
+            minHeight: scale(220),
           }}
           renderItem={({ item }) => (
             <View style={styles.cardItemBox}>
@@ -383,16 +385,16 @@ export default function Group() {
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      marginTop: 3,
+                      marginTop: scale(3),
                     }}
                   >
-                    <Ionicons name="person" size={14} color="#BFC8D6" />
+                    <Ionicons name="person" size={scale(14)} color="#BFC8D6" />
                     <Text style={styles.cardAuthor}> {item.owner}</Text>
                     <Ionicons
                       name="people-outline"
-                      size={15}
+                      size={scale(15)}
                       color="#BFC8D6"
-                      style={{ marginLeft: 10 }}
+                      style={{ marginLeft: scale(10) }}
                     />
                     <Text style={styles.cardTotalCards}>
                       {"  "}
@@ -403,7 +405,7 @@ export default function Group() {
                     <View style={styles.announcementBox}>
                       <Ionicons
                         name="notifications"
-                        size={14}
+                        size={scale(14)}
                         color="#3B5EFF"
                       />
                       <Text style={styles.announcementText} numberOfLines={1}>
@@ -414,7 +416,11 @@ export default function Group() {
                     <Text style={styles.noAnnouncement}>Chưa có thông báo</Text>
                   )}
                 </View>
-                <Ionicons name="chevron-forward" size={22} color="#9ca3af" />
+                <Ionicons
+                  name="chevron-forward"
+                  size={scale(22)}
+                  color="#9ca3af"
+                />
               </TouchableOpacity>
             </View>
           )}
@@ -424,22 +430,26 @@ export default function Group() {
                 flex: 1,
                 alignItems: "center",
                 justifyContent: "center",
-                marginTop: 50,
+                marginTop: scale(50),
               }}
             >
               <Image
                 source={require("../../assets/images/avatar.png")}
-                style={{ width: 110, height: 110, marginBottom: 14 }}
+                style={{
+                  width: scale(110),
+                  height: scale(110),
+                  marginBottom: scale(14),
+                }}
               />
-              <Text style={{ color: "#BFC8D6", fontSize: 17 }}>
+              <Text style={{ color: "#BFC8D6", fontSize: scale(17) }}>
                 Không tìm thấy nhóm nào
               </Text>
               <TouchableOpacity
                 style={styles.emptyAddBtn}
                 onPress={() => setAddModalVisible(true)}
               >
-                <Ionicons name="add" size={22} color="#fff" />
-                <Text style={{ color: "#fff", marginLeft: 5 }}>
+                <Ionicons name="add" size={scale(22)} color="#fff" />
+                <Text style={{ color: "#fff", marginLeft: scale(5) }}>
                   Tạo nhóm mới
                 </Text>
               </TouchableOpacity>
@@ -471,10 +481,10 @@ export default function Group() {
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      marginTop: 3,
+                      marginTop: scale(3),
                     }}
                   >
-                    <Ionicons name="person" size={14} color="#BFC8D6" />
+                    <Ionicons name="person" size={scale(14)} color="#BFC8D6" />
                     <Text style={styles.cardAuthor}> {item.owner}</Text>
                   </View>
                   <Text style={styles.noAnnouncement}>Đang chờ duyệt...</Text>
@@ -484,7 +494,11 @@ export default function Group() {
           )}
           ListEmptyComponent={
             <Text
-              style={{ color: "#BFC8D6", alignSelf: "center", marginTop: 38 }}
+              style={{
+                color: "#BFC8D6",
+                alignSelf: "center",
+                marginTop: scale(38),
+              }}
             >
               Không có nhóm nào đang chờ duyệt
             </Text>
@@ -515,17 +529,17 @@ export default function Group() {
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      marginTop: 3,
+                      marginTop: scale(3),
                     }}
                   >
-                    <Ionicons name="person" size={14} color="#BFC8D6" />
+                    <Ionicons name="person" size={scale(14)} color="#BFC8D6" />
                     <Text style={styles.cardAuthor}> {item.owner}</Text>
                   </View>
-                  <View style={{ flexDirection: "row", marginTop: 6 }}>
+                  <View style={{ flexDirection: "row", marginTop: scale(6) }}>
                     <TouchableOpacity
                       style={[
                         styles.modalBtn,
-                        { backgroundColor: "#2C4BFF", marginRight: 8 },
+                        { backgroundColor: "#2C4BFF", marginRight: scale(8) },
                       ]}
                       onPress={() => {
                         Alert.alert(
@@ -551,7 +565,11 @@ export default function Group() {
           )}
           ListEmptyComponent={
             <Text
-              style={{ color: "#BFC8D6", alignSelf: "center", marginTop: 38 }}
+              style={{
+                color: "#BFC8D6",
+                alignSelf: "center",
+                marginTop: scale(38),
+              }}
             >
               Không có lời mời nào
             </Text>
@@ -608,9 +626,9 @@ export default function Group() {
         <View style={styles.searchRow}>
           <Ionicons
             name="search"
-            size={18}
+            size={scale(18)}
             color="#BFC8D6"
-            style={{ marginLeft: 8 }}
+            style={{ marginLeft: scale(8) }}
           />
           <TextInput
             style={styles.searchInput}
@@ -623,7 +641,7 @@ export default function Group() {
             style={styles.filterBtn}
             onPress={() => setFilterVisible(true)}
           >
-            <Ionicons name="options" size={20} color="#BFC8D6" />
+            <Ionicons name="options" size={scale(20)} color="#BFC8D6" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.sortBtn}
@@ -632,8 +650,14 @@ export default function Group() {
               setSortMode(sortModes[(idx + 1) % sortModes.length].value);
             }}
           >
-            <Ionicons name="swap-vertical" size={21} color="#BFC8D6" />
-            <Text style={{ color: "#BFC8D6", fontSize: 13, marginLeft: 2 }}>
+            <Ionicons name="swap-vertical" size={scale(21)} color="#BFC8D6" />
+            <Text
+              style={{
+                color: "#BFC8D6",
+                fontSize: scale(13),
+                marginLeft: scale(2),
+              }}
+            >
               {sortModes.find((m) => m.value === sortMode)?.label || "Sắp xếp"}
             </Text>
           </TouchableOpacity>
@@ -646,7 +670,7 @@ export default function Group() {
             style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
           >
             <ActivityIndicator size="large" color="#2C4BFF" />
-            <Text style={{ color: "#aaa", marginTop: 10 }}>
+            <Text style={{ color: "#aaa", marginTop: scale(10) }}>
               Đang tải dữ liệu...
             </Text>
           </View>
@@ -659,33 +683,33 @@ export default function Group() {
       {fabMenuOpen && (
         <>
           <TouchableOpacity
-            style={[styles.fabMenuBtn, { bottom: 128 }]}
+            style={[styles.fabMenuBtn, { bottom: scale(128) }]}
             onPress={() => {
               setFabMenuOpen(false);
               setEnterCodeModalVisible(true);
             }}
           >
-            <Ionicons name="key" size={22} color="#fff" />
+            <Ionicons name="key" size={scale(22)} color="#fff" />
             <Text style={styles.fabMenuText}>Nhập mã nhóm</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.fabMenuBtn, { bottom: 74 }]}
+            style={[styles.fabMenuBtn, { bottom: scale(74) }]}
             onPress={() => {
               setFabMenuOpen(false);
               setScanQRModalVisible(true);
             }}
           >
-            <Ionicons name="qr-code" size={22} color="#fff" />
+            <Ionicons name="qr-code" size={scale(22)} color="#fff" />
             <Text style={styles.fabMenuText}>Quét mã QR</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.fabMenuBtn, { bottom: 182 }]}
+            style={[styles.fabMenuBtn, { bottom: scale(182) }]}
             onPress={() => {
               setFabMenuOpen(false);
               setAddModalVisible(true);
             }}
           >
-            <Ionicons name="add-circle" size={22} color="#fff" />
+            <Ionicons name="add-circle" size={scale(22)} color="#fff" />
             <Text style={styles.fabMenuText}>Tạo nhóm mới</Text>
           </TouchableOpacity>
           <TouchableWithoutFeedback onPress={() => setFabMenuOpen(false)}>
@@ -698,7 +722,11 @@ export default function Group() {
         onPress={handleFAB}
         activeOpacity={0.9}
       >
-        <Ionicons name={fabMenuOpen ? "close" : "add"} size={32} color="#fff" />
+        <Ionicons
+          name={fabMenuOpen ? "close" : "add"}
+          size={scale(32)}
+          color="#fff"
+        />
       </TouchableOpacity>
 
       {/* Add Group Modal */}
@@ -732,7 +760,7 @@ export default function Group() {
                       setNewGroup((c) => ({ ...c, description: t }))
                     }
                   />
-                  <Text style={{ marginBottom: 7, marginTop: 7 }}>
+                  <Text style={{ marginBottom: scale(7), marginTop: scale(7) }}>
                     Danh mục
                   </Text>
                   <FlatList
@@ -825,13 +853,13 @@ export default function Group() {
                     <TouchableOpacity
                       style={[
                         styles.modalBtn,
-                        { backgroundColor: "#2C4BFF", minWidth: 70 },
+                        { backgroundColor: "#2C4BFF", minWidth: scale(70) },
                       ]}
                       onPress={handleJoinByCode}
                       disabled={joinLoading}
                     >
                       {joinLoading ? (
-                        <ActivityIndicator size={20} color="#fff" />
+                        <ActivityIndicator size={scale(20)} color="#fff" />
                       ) : (
                         <Text style={{ color: "#fff" }}>Tham gia</Text>
                       )}
@@ -859,29 +887,37 @@ export default function Group() {
               <Animated.View
                 style={[styles.qrContent, { opacity: scanQRModalFade }]}
               >
-                <Ionicons name="qr-code" size={60} color="#2C4BFF" />
+                <Ionicons name="qr-code" size={scale(60)} color="#2C4BFF" />
                 <Text
-                  style={{ fontSize: 19, fontWeight: "bold", marginTop: 10 }}
+                  style={{
+                    fontSize: scale(19),
+                    fontWeight: "bold",
+                    marginTop: scale(10),
+                  }}
                 >
                   Quét mã QR nhóm
                 </Text>
-                <Text style={{ color: "#3B5EFF", marginVertical: 12 }}>
+                <Text style={{ color: "#3B5EFF", marginVertical: scale(12) }}>
                   (Demo) Nhấn nút bên dưới để mô phỏng quét thành công
                 </Text>
                 <TouchableOpacity
                   style={[
                     styles.modalBtn,
-                    { backgroundColor: "#2C4BFF", marginTop: 20 },
+                    { backgroundColor: "#2C4BFF", marginTop: scale(20) },
                   ]}
                   onPress={handleMockScan}
                 >
-                  <Ionicons name="qr-code-outline" size={22} color="#fff" />
-                  <Text style={{ color: "#fff", marginLeft: 8 }}>
+                  <Ionicons
+                    name="qr-code-outline"
+                    size={scale(22)}
+                    color="#fff"
+                  />
+                  <Text style={{ color: "#fff", marginLeft: scale(8) }}>
                     Quét thành công
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modalBtn, { marginTop: 8 }]}
+                  style={[styles.modalBtn, { marginTop: scale(8) }]}
                   onPress={() => setScanQRModalVisible(false)}
                 >
                   <Text>Huỷ</Text>
@@ -910,10 +946,10 @@ export default function Group() {
               >
                 <View style={styles.modalHeader}>
                   <TouchableOpacity onPress={() => setFilterVisible(false)}>
-                    <Ionicons name="close" size={28} color="#222" />
+                    <Ionicons name="close" size={scale(28)} color="#222" />
                   </TouchableOpacity>
                   <Text style={styles.modalTitle}>Bộ lọc</Text>
-                  <View style={{ width: 28 }} />
+                  <View style={{ width: scale(28) }} />
                 </View>
                 <Text style={styles.sectionTitle}>Danh mục</Text>
                 <View style={styles.rowWrap}>
@@ -970,130 +1006,140 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
-    marginBottom: 18,
-    paddingHorizontal: 24,
+    marginTop: scale(8),
+    marginBottom: scale(18),
+    paddingHorizontal: scale(24),
     justifyContent: "space-between",
   },
-  title: { fontSize: 30, fontWeight: "bold", color: "#222" },
-  avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#eee" },
+  title: { fontSize: scale(30), fontWeight: "bold", color: "#222" },
+  avatar: {
+    width: scale(38),
+    height: scale(38),
+    borderRadius: scale(19),
+    backgroundColor: "#eee",
+  },
   tabsRow: {
     flexDirection: "row",
-    marginLeft: 24,
-    marginBottom: 8,
+    marginLeft: scale(24),
+    marginBottom: scale(8),
     alignItems: "center",
   },
   tab: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 10,
-    borderRadius: 16,
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(6),
+    marginRight: scale(10),
+    borderRadius: scale(16),
     backgroundColor: "transparent",
     flexDirection: "row",
     alignItems: "center",
     position: "relative",
   },
-  tabText: { fontSize: 15, color: "#BFC8D6", fontWeight: "600" },
+  tabText: { fontSize: scale(15), color: "#BFC8D6", fontWeight: "600" },
   tabActive: {
     backgroundColor: "#3B5EFF",
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 6,
+    borderRadius: scale(16),
+    paddingHorizontal: scale(18),
+    paddingVertical: scale(6),
   },
-  tabActiveText: { fontSize: 15, color: "#fff", fontWeight: "bold" },
+  tabActiveText: { fontSize: scale(15), color: "#fff", fontWeight: "bold" },
   badge: {
-    minWidth: 18,
-    height: 18,
+    minWidth: scale(18),
+    height: scale(18),
     backgroundColor: "#FF3B30",
-    borderRadius: 9,
+    borderRadius: scale(9),
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 5,
-    paddingHorizontal: 4,
+    marginLeft: scale(5),
+    paddingHorizontal: scale(4),
   },
-  badgeText: { color: "#fff", fontSize: 12, fontWeight: "bold" },
+  badgeText: { color: "#fff", fontSize: scale(12), fontWeight: "bold" },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F7F8FB",
-    borderRadius: 16,
-    marginHorizontal: 24,
-    paddingHorizontal: 8,
-    marginBottom: 18,
-    height: 44,
+    borderRadius: scale(16),
+    marginHorizontal: scale(24),
+    paddingHorizontal: scale(8),
+    marginBottom: scale(18),
+    height: scale(44),
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    marginLeft: 6,
+    fontSize: scale(16),
+    marginLeft: scale(6),
     color: "#222",
     backgroundColor: "transparent",
   },
-  filterBtn: { padding: 6, marginLeft: 10 },
+  filterBtn: { padding: scale(6), marginLeft: scale(10) },
   sortBtn: {
     flexDirection: "row",
     alignItems: "center",
-    marginLeft: 8,
-    padding: 2,
+    marginLeft: scale(8),
+    padding: scale(2),
   },
-  cardItemBox: { marginBottom: 11 },
+  cardItemBox: { marginBottom: scale(11) },
   cardItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 16,
-    marginHorizontal: 24,
-    padding: 16,
+    borderRadius: scale(16),
+    marginHorizontal: scale(24),
+    padding: scale(16),
     shadowColor: "#BFC8D6",
     shadowOpacity: 0.12,
-    shadowRadius: 8,
+    shadowRadius: scale(8),
     elevation: 3,
   },
   cardImageBox: {
-    width: 58,
-    height: 58,
-    borderRadius: 12,
-    marginRight: 16,
+    width: scale(58),
+    height: scale(58),
+    borderRadius: scale(12),
+    marginRight: scale(16),
     backgroundColor: "#F2F2F2",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
   cardImagePlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(8),
     backgroundColor: "#D9DBE9",
   },
-  cardTitle: { fontSize: 17, fontWeight: "bold", color: "#222" },
-  cardDesc: { color: "#BFC8D6", fontSize: 13, marginTop: 2, marginBottom: 0 },
-  cardAuthor: { fontSize: 13, color: "#BFC8D6", marginLeft: 2 },
+  cardTitle: { fontSize: scale(17), fontWeight: "bold", color: "#222" },
+  cardDesc: {
+    color: "#BFC8D6",
+    fontSize: scale(13),
+    marginTop: scale(2),
+    marginBottom: 0,
+  },
+  cardAuthor: { fontSize: scale(13), color: "#BFC8D6", marginLeft: scale(2) },
   cardTotalCards: {
-    fontSize: 13,
+    fontSize: scale(13),
     color: "#3B5EFF",
-    marginLeft: 2,
+    marginLeft: scale(2),
     fontWeight: "bold",
   },
   announcementBox: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 7,
+    marginTop: scale(7),
     backgroundColor: "#F1F6FF",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(3),
+    borderRadius: scale(8),
   },
   announcementText: {
-    marginLeft: 4,
+    marginLeft: scale(4),
     color: "#3B5EFF",
-    fontSize: 13,
+    fontSize: scale(13),
     flex: 1,
     fontWeight: "bold",
   },
   noAnnouncement: {
-    fontSize: 12,
+    fontSize: scale(12),
     color: "#BFC8D6",
-    marginTop: 7,
+    marginTop: scale(7),
     fontStyle: "italic",
   },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
@@ -1106,10 +1152,10 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     backgroundColor: "#fff",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingVertical: 24,
-    paddingHorizontal: 20,
+    borderTopLeftRadius: scale(32),
+    borderTopRightRadius: scale(32),
+    paddingVertical: scale(24),
+    paddingHorizontal: scale(20),
     minHeight: height * 0.56,
     zIndex: 2,
   },
@@ -1117,92 +1163,92 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
-  modalTitle: { fontSize: 22, fontWeight: "700", color: "#222" },
+  modalTitle: { fontSize: scale(22), fontWeight: "700", color: "#222" },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: scale(17),
     fontWeight: "600",
-    marginVertical: 10,
+    marginVertical: scale(10),
     color: "#232323",
   },
   rowWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 8,
+    gap: scale(10),
+    marginBottom: scale(8),
   },
   chip: {
     backgroundColor: "#F4F4FC",
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    margin: 4,
+    borderRadius: scale(10),
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(8),
+    margin: scale(4),
   },
   chipActive: { backgroundColor: "#2C4BFF" },
-  chipText: { color: "#b9b9c9", fontWeight: "500", fontSize: 15 },
+  chipText: { color: "#b9b9c9", fontWeight: "500", fontSize: scale(15) },
   chipTextActive: { color: "#fff" },
   btnRow: {
     flexDirection: "row",
-    marginTop: 18,
-    marginBottom: 10,
+    marginTop: scale(18),
+    marginBottom: scale(10),
     justifyContent: "space-between",
   },
   clearBtn: {
     borderWidth: 1,
     borderColor: "#2C4BFF",
     backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 30,
+    borderRadius: scale(12),
+    paddingVertical: scale(13),
+    paddingHorizontal: scale(30),
   },
   applyBtn: {
     backgroundColor: "#2C4BFF",
-    borderRadius: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 30,
+    borderRadius: scale(12),
+    paddingVertical: scale(13),
+    paddingHorizontal: scale(30),
   },
-  btnText: { fontSize: 17, fontWeight: "600" },
+  btnText: { fontSize: scale(17), fontWeight: "600" },
   modalContent: {
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 22,
+    borderRadius: scale(18),
+    padding: scale(22),
     width: width * 0.85,
     shadowColor: "#222",
     shadowOpacity: 0.11,
-    shadowRadius: 10,
+    shadowRadius: scale(10),
     elevation: 5,
   },
   input: {
     borderWidth: 1,
     borderColor: "#E4E6EF",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    fontSize: 16,
+    borderRadius: scale(8),
+    padding: scale(10),
+    marginBottom: scale(10),
+    fontSize: scale(16),
     color: "#222",
     backgroundColor: "#F7F8FB",
   },
   modalBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginLeft: 10,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(10),
+    borderRadius: scale(8),
+    marginLeft: scale(10),
     backgroundColor: "#F4F4FB",
-    marginTop: 6,
+    marginTop: scale(6),
     flexDirection: "row",
     alignItems: "center",
-    minWidth: 64,
+    minWidth: scale(64),
     justifyContent: "center",
   },
   fab: {
     position: "absolute",
-    right: 32,
-    bottom: 36,
+    right: scale(32),
+    bottom: scale(36),
     backgroundColor: "#3B5EFF",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
     alignItems: "center",
     justifyContent: "center",
     elevation: 6,
@@ -1210,22 +1256,22 @@ const styles = StyleSheet.create({
   },
   fabMenuBtn: {
     position: "absolute",
-    right: 38,
+    right: scale(38),
     backgroundColor: "#3B5EFF",
-    paddingHorizontal: 17,
-    paddingVertical: 11,
-    borderRadius: 18,
+    paddingHorizontal: scale(17),
+    paddingVertical: scale(11),
+    borderRadius: scale(18),
     zIndex: 30,
     flexDirection: "row",
     alignItems: "center",
     elevation: 4,
-    minWidth: 130,
+    minWidth: scale(130),
   },
   fabMenuText: {
     color: "#fff",
-    marginLeft: 8,
+    marginLeft: scale(8),
     fontWeight: "bold",
-    fontSize: 15,
+    fontSize: scale(15),
   },
   fabOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1233,13 +1279,13 @@ const styles = StyleSheet.create({
     zIndex: 15,
   },
   emptyAddBtn: {
-    marginTop: 18,
+    marginTop: scale(18),
     backgroundColor: "#3B5EFF",
-    borderRadius: 18,
+    borderRadius: scale(18),
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 9,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(9),
   },
   qrOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1250,13 +1296,13 @@ const styles = StyleSheet.create({
   },
   qrContent: {
     backgroundColor: "#fff",
-    borderRadius: 24,
+    borderRadius: scale(24),
     alignItems: "center",
-    padding: 30,
+    padding: scale(30),
     width: width * 0.8,
     shadowColor: "#222",
     shadowOpacity: 0.11,
-    shadowRadius: 10,
+    shadowRadius: scale(10),
     elevation: 6,
   },
 });

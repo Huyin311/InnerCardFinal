@@ -1,4 +1,3 @@
-//components/Auth/LoginForm.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -8,10 +7,25 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
 import type { StackNavigationProp } from "@react-navigation/stack";
-import type { RootStackParamList } from "../../AppNavigator"; // Đường dẫn tuỳ dự án
+import type { RootStackParamList } from "../../AppNavigator";
+
+// ----- Responsive helpers -----
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const isTablet = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) >= 600;
+const clamp = (v: number, min: number, max: number) =>
+  Math.max(Math.min(v, max), min);
+const baseWidth = 375;
+const maxScale = isTablet ? 1.22 : 1.06;
+const minScale = 0.84;
+const scale = (size: number) => {
+  const ratio = SCREEN_WIDTH / baseWidth;
+  return clamp(size * ratio, size * minScale, size * maxScale);
+};
+// --------------------------------
 
 type Props = {
   navigation: StackNavigationProp<RootStackParamList, "Login">;
@@ -50,7 +64,7 @@ export default function LoginForm({ navigation }: Props) {
           style={styles.eyeBtn}
           onPress={() => setShowPassword((v) => !v)}
         >
-          <Text style={{ color: Colors.light.icon }}>
+          <Text style={{ color: Colors.light.icon, fontSize: scale(18) }}>
             {showPassword ? "👁️" : "🙈"}
           </Text>
         </TouchableOpacity>
@@ -75,36 +89,38 @@ export default function LoginForm({ navigation }: Props) {
   );
 }
 
-// ... phần styles giữ nguyên ...
+// Responsive card width
+const CARD_WIDTH = clamp(Math.min(SCREEN_WIDTH * 0.92, 410), 320, 500);
 
 const styles = StyleSheet.create({
-  // ... giữ nguyên phần styles của bạn ...
   card: {
-    width: 350,
+    width: CARD_WIDTH,
     backgroundColor: Colors.light.background,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: scale(16),
+    padding: scale(22),
     shadowColor: Colors.light.icon,
     shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowRadius: scale(10),
     elevation: 3,
     alignItems: "center",
+    alignSelf: "center",
+    marginVertical: scale(18),
   },
   title: {
-    fontSize: 32,
+    fontSize: scale(30),
     fontWeight: "bold",
     color: Colors.light.text,
-    marginBottom: 18,
+    marginBottom: scale(16),
     alignSelf: "flex-start",
   },
   input: {
     width: "100%",
     backgroundColor: Colors.light.background,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 16,
+    borderRadius: scale(8),
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(11),
+    fontSize: scale(16),
+    marginBottom: scale(13),
     borderWidth: 1,
     borderColor: Colors.light.muted,
     color: Colors.light.text,
@@ -116,28 +132,30 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   eyeBtn: {
-    padding: 8,
+    padding: scale(8),
+    justifyContent: "center",
+    alignItems: "center",
   },
   forgotBtn: {
     alignSelf: "flex-end",
-    marginVertical: 8,
+    marginVertical: scale(6),
   },
   forgotText: {
     color: Colors.light.icon,
-    fontSize: 13,
+    fontSize: scale(13),
   },
   button: {
     backgroundColor: Colors.light.tint,
-    borderRadius: 8,
-    paddingVertical: 14,
+    borderRadius: scale(8),
+    paddingVertical: scale(13),
     width: "100%",
     alignItems: "center",
-    marginVertical: 16,
+    marginVertical: scale(14),
   },
   buttonText: {
     color: Colors.light.background,
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: scale(16),
   },
   row: {
     flexDirection: "row",
@@ -146,23 +164,23 @@ const styles = StyleSheet.create({
   },
   grayText: {
     color: Colors.light.icon,
-    fontSize: 13,
+    fontSize: scale(13),
   },
   link: {
     color: Colors.light.tint,
     fontWeight: "bold",
-    fontSize: 13,
+    fontSize: scale(13),
   },
   orRow: {
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
-    marginVertical: 14,
+    marginVertical: scale(12),
   },
   orText: {
     color: Colors.light.icon,
-    fontSize: 13,
-    marginHorizontal: 10,
+    fontSize: scale(13),
+    marginHorizontal: scale(10),
   },
   line: {
     flex: 1,
@@ -173,17 +191,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     width: "100%",
     justifyContent: "center",
-    gap: 16,
+    gap: scale(16),
   },
   socialBtn: {
     backgroundColor: Colors.light.background,
-    borderRadius: 30,
+    borderRadius: scale(30),
     borderWidth: 1,
     borderColor: Colors.light.muted,
-    padding: 14,
-    marginHorizontal: 10,
+    padding: scale(14),
+    marginHorizontal: scale(10),
   },
   socialIcon: {
-    fontSize: 24,
+    fontSize: scale(24),
   },
 });

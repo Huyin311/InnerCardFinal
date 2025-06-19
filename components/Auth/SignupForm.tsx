@@ -1,4 +1,3 @@
-//components/Auth/SignupForm.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -8,10 +7,25 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Dimensions,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
 import type { StackNavigationProp } from "@react-navigation/stack";
-import type { RootStackParamList } from "../../AppNavigator"; // chỉnh lại đường dẫn nếu cần
+import type { RootStackParamList } from "../../AppNavigator";
+
+// ----- Responsive helpers -----
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const isTablet = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) >= 600;
+const clamp = (v: number, min: number, max: number) =>
+  Math.max(Math.min(v, max), min);
+const baseWidth = 375;
+const maxScale = isTablet ? 1.22 : 1.06;
+const minScale = 0.84;
+const scale = (size: number) => {
+  const ratio = SCREEN_WIDTH / baseWidth;
+  return clamp(size * ratio, size * minScale, size * maxScale);
+};
+// --------------------------------
 
 type Props = {
   navigation: StackNavigationProp<RootStackParamList, "Signup">;
@@ -53,7 +67,7 @@ export default function SignupForm({ navigation }: Props) {
           style={styles.eyeBtn}
           onPress={() => setShowPassword((v) => !v)}
         >
-          <Text style={{ color: Colors.light.icon }}>
+          <Text style={{ color: Colors.light.icon, fontSize: scale(18) }}>
             {showPassword ? "👁️" : "🙈"}
           </Text>
         </TouchableOpacity>
@@ -80,40 +94,42 @@ export default function SignupForm({ navigation }: Props) {
   );
 }
 
+const CARD_WIDTH = clamp(Math.min(SCREEN_WIDTH * 0.92, 410), 320, 500);
+
 const styles = StyleSheet.create({
-  // ...giữ nguyên phần styles của bạn...
   card: {
-    width: 350,
+    width: CARD_WIDTH,
     backgroundColor: Colors.light.background,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: scale(16),
+    padding: scale(24),
     shadowColor: Colors.light.icon,
     shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowRadius: scale(10),
     elevation: 3,
     alignItems: "center",
+    alignSelf: "center",
   },
   title: {
-    fontSize: 32,
+    fontSize: scale(32),
     fontWeight: "bold",
     color: Colors.light.text,
-    marginBottom: 4,
+    marginBottom: scale(4),
     alignSelf: "flex-start",
   },
   subtitle: {
     color: Colors.light.icon,
-    fontSize: 14,
-    marginBottom: 18,
+    fontSize: scale(14),
+    marginBottom: scale(18),
     alignSelf: "flex-start",
   },
   input: {
     width: "100%",
     backgroundColor: Colors.light.background,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 16,
+    borderRadius: scale(8),
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(12),
+    fontSize: scale(16),
+    marginBottom: scale(16),
     borderWidth: 1,
     borderColor: Colors.light.muted,
     color: Colors.light.text,
@@ -122,40 +138,41 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     width: "100%",
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
   eyeBtn: {
-    padding: 8,
+    padding: scale(8),
   },
   button: {
     backgroundColor: Colors.light.tint,
-    borderRadius: 8,
-    paddingVertical: 14,
+    borderRadius: scale(8),
+    paddingVertical: scale(14),
     width: "100%",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
   buttonText: {
     color: Colors.light.background,
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: scale(16),
   },
   checkRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: scale(10),
     alignSelf: "flex-start",
+    width: "100%",
   },
   checkbox: {
-    width: 16,
-    height: 16,
+    width: scale(16),
+    height: scale(16),
     borderWidth: 1,
     borderColor: Colors.light.muted,
-    borderRadius: 4,
-    marginRight: 8,
+    borderRadius: scale(4),
+    marginRight: scale(8),
   },
   checkLabel: {
-    fontSize: 12,
+    fontSize: scale(12),
     color: Colors.light.icon,
     flex: 1,
     flexWrap: "wrap",
@@ -167,11 +184,11 @@ const styles = StyleSheet.create({
   },
   grayText: {
     color: Colors.light.icon,
-    fontSize: 13,
+    fontSize: scale(13),
   },
   link: {
     color: Colors.light.tint,
     fontWeight: "bold",
-    fontSize: 13,
+    fontSize: scale(13),
   },
 });

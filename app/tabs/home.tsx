@@ -13,10 +13,15 @@ import {
   Alert,
   FlatList,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
 import CustomTabBar from "../../components/CustomTabBar";
 import { Ionicons, Feather } from "@expo/vector-icons";
+
+// Responsive helpers
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
 const user = {
   name: "Kristin",
@@ -72,13 +77,13 @@ const suggestions = [
   },
 ];
 
-const HEADER_MAX_HEIGHT = 140;
+const HEADER_MAX_HEIGHT = scale(140);
 const HEADER_MIN_HEIGHT =
-  90 + (Platform.OS === "ios" ? 0 : StatusBar.currentHeight || 0);
-const AVATAR_MAX = 48;
-const AVATAR_MIN = 40;
-const TITLE_MAX = 24;
-const TITLE_MIN = 17;
+  scale(90) + (Platform.OS === "ios" ? 0 : StatusBar.currentHeight || 0);
+const AVATAR_MAX = scale(48);
+const AVATAR_MIN = scale(40);
+const TITLE_MAX = scale(24);
+const TITLE_MIN = scale(17);
 
 export default function HomeScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -91,25 +96,25 @@ export default function HomeScreen() {
 
   // Animate header
   const headerHeight = scrollY.interpolate({
-    inputRange: [0, 48],
+    inputRange: [0, scale(48)],
     outputRange: [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
     extrapolate: "clamp",
   });
 
   const avatarSize = scrollY.interpolate({
-    inputRange: [0, 48],
+    inputRange: [0, scale(48)],
     outputRange: [AVATAR_MAX, AVATAR_MIN],
     extrapolate: "clamp",
   });
 
   const titleSize = scrollY.interpolate({
-    inputRange: [0, 48],
-    outputRange: [TITLE_MAX, 28],
+    inputRange: [0, scale(48)],
+    outputRange: [TITLE_MAX, scale(28)],
     extrapolate: "clamp",
   });
 
   const subOpacity = scrollY.interpolate({
-    inputRange: [0, 32],
+    inputRange: [0, scale(32)],
     outputRange: [1, 0],
     extrapolate: "clamp",
   });
@@ -150,7 +155,7 @@ export default function HomeScreen() {
 
   // Header toàn bộ phần đầu trang (trước activity)
   const renderListHeader = () => (
-    <View style={{ paddingBottom: 15 }}>
+    <View style={{ paddingBottom: scale(15) }}>
       {/* Progress card */}
       <View style={styles.progressCard}>
         <View style={styles.progressRow}>
@@ -190,7 +195,7 @@ export default function HomeScreen() {
       >
         {suggestions.map((item, idx) => (
           <View
-            style={[styles.suggestCard, idx > 0 && { marginLeft: 12 }]}
+            style={[styles.suggestCard, idx > 0 && { marginLeft: scale(12) }]}
             key={item.title}
           >
             <Text style={styles.suggestTitle}>{item.title}</Text>
@@ -200,7 +205,7 @@ export default function HomeScreen() {
             >
               <Text style={styles.suggestBtnText}>{item.btn}</Text>
             </TouchableOpacity>
-            <Text style={[styles.suggestImg, { fontSize: 54 }]}>
+            <Text style={[styles.suggestImg, { fontSize: scale(54) }]}>
               {item.emoji}
             </Text>
           </View>
@@ -231,11 +236,11 @@ export default function HomeScreen() {
               onPress={() =>
                 addActivity(`Reviewed plan: ${plan.name}`, "learned")
               }
-              style={{ marginLeft: 10 }}
+              style={{ marginLeft: scale(10) }}
             >
               <Feather
                 name="arrow-right-circle"
-                size={22}
+                size={scale(22)}
                 color={Colors.light.tint}
               />
             </TouchableOpacity>
@@ -246,8 +251,8 @@ export default function HomeScreen() {
       {/* Streak/achievement widget */}
       <View style={styles.streakWidget}>
         <TouchableOpacity style={styles.streakMain} onPress={handleShowStreak}>
-          <Ionicons name="flame" size={28} color="#FF7F00" />
-          <View style={{ marginLeft: 10 }}>
+          <Ionicons name="flame" size={scale(28)} color="#FF7F00" />
+          <View style={{ marginLeft: scale(10) }}>
             <Text style={styles.streakDays}>7-day streak</Text>
             <Text style={styles.streakSub}>Keep it up!</Text>
           </View>
@@ -256,15 +261,27 @@ export default function HomeScreen() {
           style={styles.streakBtn}
           onPress={() => addActivity("Shared your streak!", "achievement")}
         >
-          <Ionicons name="share-social-outline" size={22} color="#2C4BFF" />
-          <Text style={{ marginLeft: 4, color: "#2C4BFF", fontWeight: "bold" }}>
+          <Ionicons
+            name="share-social-outline"
+            size={scale(22)}
+            color="#2C4BFF"
+          />
+          <Text
+            style={{
+              marginLeft: scale(4),
+              color: "#2C4BFF",
+              fontWeight: "bold",
+            }}
+          >
             Share
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Recent Activity title */}
-      <Text style={[styles.planTitle, { marginTop: 32 }]}>Recent Activity</Text>
+      <Text style={[styles.planTitle, { marginTop: scale(32) }]}>
+        Recent Activity
+      </Text>
     </View>
   );
 
@@ -275,19 +292,19 @@ export default function HomeScreen() {
         styles.header,
         {
           height: headerHeight,
-          paddingTop: 48,
-          paddingBottom: 28,
+          paddingTop: scale(48),
+          paddingBottom: scale(28),
         },
       ]}
     >
-      <View style={{ flex: 1, position: "relative", height: 56 }}>
+      <View style={{ flex: 1, position: "relative", height: scale(56) }}>
         <Animated.Text
           style={[
             styles.headerHi,
             {
               fontSize: titleSize,
               position: "absolute",
-              top: 14,
+              top: scale(14),
               left: 0,
               right: 0,
               zIndex: 2,
@@ -302,7 +319,7 @@ export default function HomeScreen() {
             {
               opacity: subOpacity,
               position: "absolute",
-              top: 44,
+              top: scale(44),
               left: 0,
               right: 0,
               zIndex: 1,
@@ -340,7 +357,7 @@ export default function HomeScreen() {
         keyExtractor={(_, idx) => idx.toString()}
         ListHeaderComponent={renderListHeader()}
         contentContainerStyle={{
-          paddingBottom: 134,
+          paddingBottom: scale(134),
           paddingTop: HEADER_MAX_HEIGHT,
         }}
         scrollEventThrottle={16}
@@ -359,7 +376,7 @@ export default function HomeScreen() {
                     ? "star-outline"
                     : "alarm-outline"
               }
-              size={20}
+              size={scale(20)}
               color={
                 item.type === "learned"
                   ? "#3B5EFF"
@@ -421,22 +438,26 @@ export default function HomeScreen() {
           <View style={styles.streakDetailModal}>
             <Ionicons
               name="flame"
-              size={44}
+              size={scale(44)}
               color="#FF7F00"
               style={{ alignSelf: "center" }}
             />
             <Text
               style={{
-                fontSize: 20,
+                fontSize: scale(20),
                 fontWeight: "bold",
                 textAlign: "center",
-                marginVertical: 10,
+                marginVertical: scale(10),
               }}
             >
               7-day streak!
             </Text>
             <Text
-              style={{ color: "#666", textAlign: "center", marginBottom: 20 }}
+              style={{
+                color: "#666",
+                textAlign: "center",
+                marginBottom: scale(20),
+              }}
             >
               You have studied for 7 days in a row! Keep your streak going.
             </Text>
@@ -458,10 +479,11 @@ export default function HomeScreen() {
   );
 }
 
+// Responsive styles
 const styles = StyleSheet.create({
   header: {
     backgroundColor: Colors.light.tint,
-    paddingHorizontal: 24,
+    paddingHorizontal: scale(24),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -474,11 +496,11 @@ const styles = StyleSheet.create({
   headerHi: {
     fontWeight: "bold",
     color: Colors.light.background,
-    marginBottom: 2,
+    marginBottom: scale(2),
   },
   headerSub: {
     color: Colors.light.background,
-    fontSize: 15,
+    fontSize: scale(15),
     opacity: 0.9,
   },
   avatar: {
@@ -487,132 +509,132 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.background,
   },
   progressCard: {
-    marginHorizontal: 24,
-    marginTop: 20,
+    marginHorizontal: scale(24),
+    marginTop: scale(20),
     backgroundColor: Colors.light.background,
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: scale(16),
+    padding: scale(18),
     shadowColor: Colors.light.icon,
     shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowRadius: scale(6),
     elevation: 2,
   },
   progressRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 6,
+    marginBottom: scale(6),
   },
   progressLabel: {
     color: Colors.light.icon,
-    fontSize: 13,
+    fontSize: scale(13),
   },
   progressLink: {
     color: Colors.light.tint,
-    fontSize: 13,
+    fontSize: scale(13),
     fontWeight: "bold",
   },
   progressMainRow: {
     flexDirection: "row",
     alignItems: "flex-end",
-    marginBottom: 6,
+    marginBottom: scale(6),
   },
   progressMain: {
-    fontSize: 17,
+    fontSize: scale(17),
     fontWeight: "500",
     color: Colors.light.text,
   },
   progressNumber: {
-    fontSize: 24,
+    fontSize: scale(24),
     fontWeight: "bold",
     color: Colors.light.text,
   },
   progressTotal: {
-    fontSize: 16,
+    fontSize: scale(16),
     color: Colors.light.icon,
     fontWeight: "400",
   },
   progressBarBg: {
     width: "100%",
-    height: 6,
+    height: scale(6),
     backgroundColor: Colors.light.muted,
-    borderRadius: 4,
-    marginTop: 2,
+    borderRadius: scale(4),
+    marginTop: scale(2),
     overflow: "hidden",
   },
   progressBar: {
-    height: 6,
-    borderRadius: 4,
+    height: scale(6),
+    borderRadius: scale(4),
     backgroundColor: Colors.light.accent,
   },
   suggestScroll: {
-    marginTop: 28,
-    paddingLeft: 24,
+    marginTop: scale(28),
+    paddingLeft: scale(24),
   },
   suggestCard: {
-    width: 220,
+    width: scale(220),
     backgroundColor: Colors.light.accent + "14",
-    borderRadius: 16,
-    padding: 20,
-    marginRight: 12,
+    borderRadius: scale(16),
+    padding: scale(20),
+    marginRight: scale(12),
     position: "relative",
     overflow: "hidden",
     justifyContent: "flex-start",
   },
   suggestTitle: {
-    fontSize: 17,
+    fontSize: scale(17),
     fontWeight: "bold",
     color: Colors.light.text,
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
   suggestBtn: {
     backgroundColor: Colors.light.tint,
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 8,
+    paddingVertical: scale(8),
+    paddingHorizontal: scale(18),
+    borderRadius: scale(8),
     alignSelf: "flex-start",
-    marginBottom: 8,
+    marginBottom: scale(8),
   },
   suggestBtnText: {
     color: Colors.light.background,
     fontWeight: "bold",
-    fontSize: 15,
+    fontSize: scale(15),
   },
   suggestImg: {
     position: "absolute",
-    right: 8,
-    bottom: 8,
+    right: scale(8),
+    bottom: scale(8),
   },
   planTitle: {
-    fontSize: 18,
+    fontSize: scale(18),
     fontWeight: "bold",
     color: Colors.light.text,
-    marginLeft: 24,
-    marginTop: 34,
-    marginBottom: 8,
+    marginLeft: scale(24),
+    marginTop: scale(34),
+    marginBottom: scale(8),
   },
   planCard: {
-    marginHorizontal: 24,
+    marginHorizontal: scale(24),
     backgroundColor: Colors.light.background,
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderRadius: scale(16),
+    paddingVertical: scale(10),
+    paddingHorizontal: scale(14),
     shadowColor: Colors.light.icon,
     shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowRadius: scale(6),
     elevation: 2,
   },
   planRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 8,
+    marginVertical: scale(8),
   },
   planProgressCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: scale(26),
+    height: scale(26),
+    borderRadius: scale(13),
     borderWidth: 2,
     borderColor: Colors.light.muted,
-    marginRight: 14,
+    marginRight: scale(14),
     backgroundColor: Colors.light.background,
     overflow: "hidden",
   },
@@ -621,34 +643,34 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     height: "100%",
-    borderRadius: 13,
+    borderRadius: scale(13),
     backgroundColor: Colors.light.tint,
   },
   planName: {
     flex: 1,
-    fontSize: 15,
+    fontSize: scale(15),
     color: Colors.light.text,
     fontWeight: "500",
   },
   planProgress: {
-    fontSize: 14,
+    fontSize: scale(14),
     color: Colors.light.icon,
     fontWeight: "400",
   },
   planProgressBold: {
     color: Colors.light.text,
     fontWeight: "bold",
-    fontSize: 15,
+    fontSize: scale(15),
   },
   streakWidget: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginHorizontal: 24,
-    marginTop: 28,
-    padding: 14,
+    marginHorizontal: scale(24),
+    marginTop: scale(28),
+    padding: scale(14),
     backgroundColor: "#fff8ea",
-    borderRadius: 16,
+    borderRadius: scale(16),
     borderWidth: 1,
     borderColor: "#FFF3D3",
   },
@@ -658,71 +680,71 @@ const styles = StyleSheet.create({
   },
   streakDays: {
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: scale(16),
     color: "#FF7F00",
   },
   streakSub: {
-    fontSize: 13,
+    fontSize: scale(13),
     color: "#C88325",
-    marginTop: 2,
+    marginTop: scale(2),
   },
   streakBtn: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 10,
-    paddingVertical: 7,
-    paddingHorizontal: 13,
+    borderRadius: scale(10),
+    paddingVertical: scale(7),
+    paddingHorizontal: scale(13),
     borderWidth: 1,
     borderColor: "#E2D0B6",
   },
   activityRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 7,
+    paddingVertical: scale(7),
     borderBottomWidth: 1,
     borderColor: "#F4F4F4",
-    marginHorizontal: 24,
+    marginHorizontal: scale(24),
   },
   activityText: {
     flex: 1,
-    marginLeft: 9,
-    fontSize: 15,
+    marginLeft: scale(9),
+    fontSize: scale(15),
     color: "#232323",
   },
   activityTime: {
-    marginLeft: 8,
+    marginLeft: scale(8),
     color: "#BFC8D6",
-    fontSize: 13,
+    fontSize: scale(13),
   },
   banner: {
-    marginHorizontal: 24,
-    marginTop: 24,
-    borderRadius: 18,
+    marginHorizontal: scale(24),
+    marginTop: scale(24),
+    borderRadius: scale(18),
     backgroundColor: Colors.light.accent + "14",
-    padding: 18,
+    padding: scale(18),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     shadowColor: Colors.light.icon,
     shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowRadius: scale(6),
     elevation: 2,
   },
   bannerTitle: {
-    fontSize: 19,
+    fontSize: scale(19),
     fontWeight: "bold",
     color: Colors.light.text,
-    marginBottom: 3,
+    marginBottom: scale(3),
   },
   bannerSub: {
     color: Colors.light.icon,
-    fontSize: 13,
-    width: 120,
+    fontSize: scale(13),
+    width: scale(120),
   },
   bannerImg: {
-    fontSize: 48,
-    marginLeft: 12,
+    fontSize: scale(48),
+    marginLeft: scale(12),
   },
   modalOverlay: {
     flex: 1,
@@ -732,37 +754,41 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 22,
+    borderRadius: scale(18),
+    padding: scale(22),
     width: "84%",
     shadowColor: "#222",
     shadowOpacity: 0.11,
-    shadowRadius: 10,
+    shadowRadius: scale(10),
     elevation: 5,
   },
-  modalTitle: { fontSize: 19, fontWeight: "700", marginBottom: 12 },
+  modalTitle: {
+    fontSize: scale(19),
+    fontWeight: "700",
+    marginBottom: scale(12),
+  },
   input: {
     borderWidth: 1,
     borderColor: "#E4E6EF",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    fontSize: 16,
+    borderRadius: scale(8),
+    padding: scale(10),
+    marginBottom: scale(10),
+    fontSize: scale(16),
     color: "#222",
     backgroundColor: "#F7F8FB",
   },
   modalBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginLeft: 10,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(10),
+    borderRadius: scale(8),
+    marginLeft: scale(10),
     backgroundColor: "#F4F4FB",
-    marginTop: 6,
+    marginTop: scale(6),
   },
   streakDetailModal: {
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 24,
+    borderRadius: scale(18),
+    padding: scale(24),
     width: "80%",
     alignSelf: "center",
     alignItems: "center",

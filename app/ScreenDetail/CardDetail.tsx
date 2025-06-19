@@ -19,6 +19,10 @@ import { useNavigation } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 
+// Responsive helpers
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
+
 // Ảnh mặc định
 const fallbackImage = require("../../assets/images/avatar.png");
 
@@ -84,8 +88,6 @@ const initialCardSet = {
     { name: "Health", total: 2, unlocked: true },
   ],
 };
-
-const { width } = Dimensions.get("window");
 
 // Lấy phiên âm, từ loại, nghĩa, ví dụ từ API
 async function fetchWordData(word: string) {
@@ -163,7 +165,7 @@ async function fetchPixabayImage(word: string) {
 }
 
 export default function CardDetail() {
-  const navigation = useNavigation<any>(); // Type any để không lỗi TS
+  const navigation = useNavigation<any>();
   const [cardSet, setCardSet] = useState(initialCardSet);
   const [editSet, setEditSet] = useState(false);
   const [editCard, setEditCard] = useState<null | (typeof cardSet.cards)[0]>(
@@ -370,8 +372,14 @@ export default function CardDetail() {
             style={styles.addBtn}
             onPress={() => setModalVisible(true)}
           >
-            <Ionicons name="add" size={22} color="#fff" />
-            <Text style={{ color: "#fff", marginLeft: 4, fontWeight: "bold" }}>
+            <Ionicons name="add" size={scale(22)} color="#fff" />
+            <Text
+              style={{
+                color: "#fff",
+                marginLeft: scale(4),
+                fontWeight: "bold",
+              }}
+            >
               Thêm thẻ
             </Text>
           </TouchableOpacity>
@@ -382,13 +390,13 @@ export default function CardDetail() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: scale(24) }}
       >
         {cardSet.topics.map((topic, idx) => (
           <View style={styles.topicChip} key={topic.name}>
             <Ionicons
               name={topic.unlocked ? "lock-open" : "lock-closed"}
-              size={16}
+              size={scale(16)}
               color={topic.unlocked ? "#2C4BFF" : "#bfc8d6"}
             />
             <Text style={styles.topicChipText}>
@@ -410,7 +418,7 @@ export default function CardDetail() {
             navigation.goBack();
           }}
         >
-          <Ionicons name="arrow-back" size={24} color="#222" />
+          <Ionicons name="arrow-back" size={scale(24)} color="#222" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{cardSet.name}</Text>
         <Image source={cardSet.cover} style={styles.headerImage} />
@@ -419,8 +427,8 @@ export default function CardDetail() {
             style={{
               flexDirection: "row",
               position: "absolute",
-              right: 18,
-              top: 48,
+              right: scale(18),
+              top: scale(48),
               zIndex: 99,
             }}
           ></View>
@@ -435,20 +443,26 @@ export default function CardDetail() {
         renderItem={({ item }) => (
           <View style={styles.flashCardRow}>
             {/* Ảnh bên trái */}
-            <View style={{ alignItems: "center", marginRight: 14 }}>
+            <View style={{ alignItems: "center", marginRight: scale(14) }}>
               <View pointerEvents="none">
                 <Image
                   source={item.image ? { uri: item.image } : fallbackImage}
                   style={{
-                    width: 62,
-                    height: 62,
-                    borderRadius: 10,
+                    width: scale(62),
+                    height: scale(62),
+                    borderRadius: scale(10),
                     backgroundColor: "#eee",
                   }}
                   resizeMode="cover"
                 />
               </View>
-              <Text style={{ color: "#aaa", fontSize: 12, marginTop: 2 }}>
+              <Text
+                style={{
+                  color: "#aaa",
+                  fontSize: scale(12),
+                  marginTop: scale(2),
+                }}
+              >
                 Ảnh minh họa
               </Text>
             </View>
@@ -466,23 +480,23 @@ export default function CardDetail() {
               <Text style={styles.flashCardBack}>{item.back}</Text>
               {item.example ? (
                 <Text style={styles.flashCardExample}>
-                  <Ionicons name="bulb" size={13} color="#FFD600" />{" "}
+                  <Ionicons name="bulb" size={scale(13)} color="#FFD600" />{" "}
                   <Text style={{ color: "#888" }}>{item.example}</Text>
                 </Text>
               ) : null}
               {isOwner && (
-                <View style={{ flexDirection: "row", marginTop: 8 }}>
+                <View style={{ flexDirection: "row", marginTop: scale(8) }}>
                   <TouchableOpacity
                     style={styles.iconBtn}
                     onPress={() => setEditCard({ ...item })}
                   >
-                    <Feather name="edit-2" size={18} color="#2C4BFF" />
+                    <Feather name="edit-2" size={scale(18)} color="#2C4BFF" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.iconBtn}
                     onPress={() => handleDeleteCard(item.id)}
                   >
-                    <Feather name="trash-2" size={18} color="#e74c3c" />
+                    <Feather name="trash-2" size={scale(18)} color="#e74c3c" />
                   </TouchableOpacity>
                 </View>
               )}
@@ -490,23 +504,27 @@ export default function CardDetail() {
           </View>
         )}
         ListEmptyComponent={
-          <Text style={{ color: "#bbb", textAlign: "center", marginTop: 30 }}>
+          <Text
+            style={{ color: "#bbb", textAlign: "center", marginTop: scale(30) }}
+          >
             Bộ thẻ này chưa có thẻ nào
           </Text>
         }
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: scale(120) }}
       />
 
       {/* Thanh action dưới cùng */}
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.favBtn}>
-          <MaterialIcons name="star-border" size={28} color="#FF7F00" />
+          <MaterialIcons name="star-border" size={scale(28)} color="#FF7F00" />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.buyBtn}
           onPress={() => navigation.navigate("Study" as never)}
         >
-          <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 18 }}>
+          <Text
+            style={{ color: "#fff", fontWeight: "bold", fontSize: scale(18) }}
+          >
             Học
           </Text>
         </TouchableOpacity>
@@ -514,11 +532,13 @@ export default function CardDetail() {
           <TouchableOpacity
             style={[
               styles.buyBtn,
-              { marginLeft: 8, backgroundColor: "#BFC8D6" },
+              { marginLeft: scale(8), backgroundColor: "#BFC8D6" },
             ]}
             onPress={() => setEditSet(true)}
           >
-            <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 18 }}>
+            <Text
+              style={{ color: "#fff", fontWeight: "bold", fontSize: scale(18) }}
+            >
               Chỉnh sửa bộ thẻ
             </Text>
           </TouchableOpacity>
@@ -536,22 +556,28 @@ export default function CardDetail() {
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={styles.centeredModalWrapper}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
+            keyboardVerticalOffset={Platform.OS === "ios" ? scale(40) : 0}
           >
             <TouchableOpacity
               activeOpacity={1}
               onPress={(e) => e.stopPropagation()}
-              style={[styles.modalContent, { marginTop: 70, marginBottom: 30 }]}
+              style={[
+                styles.modalContent,
+                { marginTop: scale(70), marginBottom: scale(30) },
+              ]}
             >
               <ScrollView
-                contentContainerStyle={{ paddingBottom: 12, paddingTop: 16 }}
+                contentContainerStyle={{
+                  paddingBottom: scale(12),
+                  paddingTop: scale(16),
+                }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
-                style={{ maxHeight: 500 }}
+                style={{ maxHeight: scale(500) }}
               >
                 <Text style={styles.modalTitle}>Thêm thẻ mới</Text>
                 {/* Lựa chọn thêm từng thẻ hoặc hàng loạt */}
-                <View style={{ flexDirection: "row", marginBottom: 12 }}>
+                <View style={{ flexDirection: "row", marginBottom: scale(12) }}>
                   <TouchableOpacity
                     style={[
                       styles.modalBtn,
@@ -569,7 +595,7 @@ export default function CardDetail() {
                       {
                         flex: 1,
                         backgroundColor: "#fff",
-                        marginLeft: 8,
+                        marginLeft: scale(8),
                         borderWidth: 1,
                         borderColor: "#2C4BFF",
                       },
@@ -582,7 +608,13 @@ export default function CardDetail() {
                     </Text>
                   </TouchableOpacity>
                 </View>
-                <Text style={{ color: "#888", fontSize: 13, marginBottom: 8 }}>
+                <Text
+                  style={{
+                    color: "#888",
+                    fontSize: scale(13),
+                    marginBottom: scale(8),
+                  }}
+                >
                   {importing
                     ? "Đang nhập file..."
                     : "Bạn có thể chọn nhập từng thẻ hoặc nhập hàng loạt từ file CSV/JSON"}
@@ -595,7 +627,7 @@ export default function CardDetail() {
                   onChangeText={(t) => setNewCard((c) => ({ ...c, front: t }))}
                   returnKeyType="next"
                 />
-                <View style={{ flexDirection: "row", marginBottom: 8 }}>
+                <View style={{ flexDirection: "row", marginBottom: scale(8) }}>
                   <TouchableOpacity
                     style={[styles.modalBtn, { flex: 1 }]}
                     onPress={handleAutoFill}
@@ -606,7 +638,7 @@ export default function CardDetail() {
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modalBtn, { flex: 1, marginLeft: 8 }]}
+                    style={[styles.modalBtn, { flex: 1, marginLeft: scale(8) }]}
                     onPress={handleRegenerateImage}
                     disabled={loadingAuto}
                   >
@@ -614,7 +646,7 @@ export default function CardDetail() {
                   </TouchableOpacity>
                 </View>
                 {/* Preview ảnh minh họa */}
-                <View style={{ alignItems: "center", marginBottom: 8 }}>
+                <View style={{ alignItems: "center", marginBottom: scale(8) }}>
                   <View pointerEvents="none">
                     <Image
                       source={
@@ -623,17 +655,17 @@ export default function CardDetail() {
                           : fallbackImage
                       }
                       style={{
-                        width: 120,
-                        height: 120,
-                        borderRadius: 12,
-                        marginBottom: 8,
+                        width: scale(120),
+                        height: scale(120),
+                        borderRadius: scale(12),
+                        marginBottom: scale(8),
                         backgroundColor: "#eee",
                       }}
                       resizeMode="cover"
                       onError={() => setImgPreview("")}
                     />
                   </View>
-                  <Text style={{ color: "#aaa", fontSize: 13 }}>
+                  <Text style={{ color: "#aaa", fontSize: scale(13) }}>
                     Ảnh minh họa (có thể sửa hoặc tạo lại)
                   </Text>
                 </View>
@@ -808,117 +840,117 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   headerBox: {
     backgroundColor: "#FFEFF6",
-    paddingTop: 80,
-    paddingBottom: 24,
-    paddingHorizontal: 18,
+    paddingTop: scale(80),
+    paddingBottom: scale(24),
+    paddingHorizontal: scale(18),
     alignItems: "flex-start",
     position: "relative",
     marginBottom: 0,
   },
   backBtn: {
     position: "absolute",
-    left: 18,
-    top: 48,
+    left: scale(18),
+    top: scale(48),
     zIndex: 99,
-    borderRadius: 16,
-    padding: 4,
+    borderRadius: scale(16),
+    padding: scale(4),
   },
   editSetBtn: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 6,
+    borderRadius: scale(16),
+    padding: scale(6),
     borderWidth: 1,
     borderColor: "#eee",
   },
   headerTitle: {
-    fontSize: 25,
+    fontSize: scale(25),
     fontWeight: "700",
     color: "#2C2C2C",
-    marginTop: 6,
-    marginBottom: 12,
+    marginTop: scale(6),
+    marginBottom: scale(12),
     maxWidth: "75%",
     marginLeft: 0,
   },
   headerImage: {
-    width: width * 0.29,
-    height: width * 0.29,
+    width: SCREEN_WIDTH * 0.29,
+    height: SCREEN_WIDTH * 0.29,
     position: "absolute",
-    right: 8,
-    top: 42,
+    right: scale(8),
+    top: scale(42),
     resizeMode: "contain",
-    borderRadius: 14,
+    borderRadius: scale(14),
     borderWidth: 2,
     borderColor: "#fff",
   },
   contentBox: {
     backgroundColor: "#fff",
-    marginTop: -10,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 22,
+    marginTop: scale(-10),
+    borderTopLeftRadius: scale(32),
+    borderTopRightRadius: scale(32),
+    padding: scale(22),
     flex: 1,
   },
   cardSetTitle: {
-    fontSize: 22,
+    fontSize: scale(22),
     fontWeight: "bold",
     color: "#222",
-    marginBottom: 2,
+    marginBottom: scale(2),
     flexWrap: "wrap",
   },
   subInfo: {
     color: "#BFC8D6",
-    marginBottom: 10,
-    fontSize: 15,
+    marginBottom: scale(10),
+    fontSize: scale(15),
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: scale(17),
     fontWeight: "700",
-    marginTop: 8,
-    marginBottom: 5,
+    marginTop: scale(8),
+    marginBottom: scale(5),
     color: "#232323",
   },
   description: {
     color: "#444",
-    fontSize: 15,
-    marginBottom: 12,
-    lineHeight: 22,
+    fontSize: scale(15),
+    marginBottom: scale(12),
+    lineHeight: scale(22),
   },
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 10,
-    marginBottom: 5,
+    marginTop: scale(10),
+    marginBottom: scale(5),
   },
   addBtn: {
     backgroundColor: "#2C4BFF",
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+    borderRadius: scale(12),
+    paddingVertical: scale(6),
+    paddingHorizontal: scale(14),
   },
   flashCardRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     backgroundColor: "#F7F8FB",
-    borderRadius: 14,
-    marginBottom: 12,
-    padding: 14,
+    borderRadius: scale(14),
+    marginBottom: scale(12),
+    padding: scale(14),
     shadowColor: "#BFC8D6",
     shadowOpacity: 0.06,
-    shadowRadius: 3,
+    shadowRadius: scale(3),
     elevation: 1,
   },
-  flashCardFront: { fontSize: 16, fontWeight: "bold", color: "#2C4BFF" },
-  cardPOS: { fontWeight: "normal", color: "#444", fontSize: 15 },
-  cardPhonetic: { fontWeight: "normal", color: "#888", fontSize: 15 },
-  flashCardBack: { fontSize: 16, color: "#222", marginTop: 2 },
-  flashCardExample: { fontSize: 13, color: "#888", marginTop: 5 },
+  flashCardFront: { fontSize: scale(16), fontWeight: "bold", color: "#2C4BFF" },
+  cardPOS: { fontWeight: "normal", color: "#444", fontSize: scale(15) },
+  cardPhonetic: { fontWeight: "normal", color: "#888", fontSize: scale(15) },
+  flashCardBack: { fontSize: scale(16), color: "#222", marginTop: scale(2) },
+  flashCardExample: { fontSize: scale(13), color: "#888", marginTop: scale(5) },
   iconBtn: {
-    padding: 7,
-    marginLeft: 8,
-    borderRadius: 7,
+    padding: scale(7),
+    marginLeft: scale(8),
+    borderRadius: scale(7),
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#F3F3F7",
@@ -927,42 +959,42 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F4F4FB",
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginRight: 8,
-    marginTop: 2,
-    marginBottom: 8,
+    borderRadius: scale(18),
+    paddingHorizontal: scale(14),
+    paddingVertical: scale(8),
+    marginRight: scale(8),
+    marginTop: scale(2),
+    marginBottom: scale(8),
   },
-  topicChipText: { color: "#232323", fontWeight: "600", marginLeft: 6 },
+  topicChipText: { color: "#232323", fontWeight: "600", marginLeft: scale(6) },
   bottomBar: {
     flexDirection: "row",
     backgroundColor: "#fff",
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    padding: 14,
-    paddingBottom: 28,
+    borderTopLeftRadius: scale(18),
+    borderTopRightRadius: scale(18),
+    padding: scale(14),
+    paddingBottom: scale(28),
     shadowColor: "#222",
     shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowRadius: scale(6),
     elevation: 10,
     alignItems: "center",
     justifyContent: "space-between",
   },
   favBtn: {
     backgroundColor: "#FFEFF6",
-    padding: 14,
-    borderRadius: 16,
-    marginRight: 12,
+    padding: scale(14),
+    borderRadius: scale(16),
+    marginRight: scale(12),
   },
   buyBtn: {
     flex: 1,
     backgroundColor: "#2C4BFF",
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: scale(16),
+    paddingVertical: scale(16),
     alignItems: "center",
     justifyContent: "center",
-    marginHorizontal: 4,
+    marginHorizontal: scale(4),
   },
   modalOverlay: {
     flex: 1,
@@ -982,35 +1014,39 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 22,
+    borderRadius: scale(18),
+    padding: scale(22),
     width: "92%",
-    maxWidth: 420,
+    maxWidth: scale(420),
     alignSelf: "center",
     shadowColor: "#222",
     shadowOpacity: 0.11,
-    shadowRadius: 10,
+    shadowRadius: scale(10),
     elevation: 5,
-    maxHeight: 520,
+    maxHeight: scale(520),
   },
-  modalTitle: { fontSize: 19, fontWeight: "700", marginBottom: 12 },
+  modalTitle: {
+    fontSize: scale(19),
+    fontWeight: "700",
+    marginBottom: scale(12),
+  },
   input: {
     borderWidth: 1,
     borderColor: "#E4E6EF",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    fontSize: 16,
+    borderRadius: scale(8),
+    padding: scale(10),
+    marginBottom: scale(10),
+    fontSize: scale(16),
     color: "#222",
     backgroundColor: "#F7F8FB",
   },
   modalBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginLeft: 10,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(10),
+    borderRadius: scale(8),
+    marginLeft: scale(10),
     backgroundColor: "#F4F4FB",
-    marginTop: 6,
+    marginTop: scale(6),
     alignItems: "center",
   },
 });

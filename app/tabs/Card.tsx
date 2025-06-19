@@ -21,6 +21,10 @@ import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../../AppNavigator";
 
+// Responsive helpers
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
+
 const categories = [
   {
     id: "1",
@@ -92,14 +96,11 @@ const filterCategories = [
   "Âm nhạc",
   "Toán học",
 ];
-
 const sortModes = [
   { label: "Tên A-Z", value: "titleAsc" },
   { label: "Mới nhất", value: "latest" },
   { label: "Nhiều thẻ nhất", value: "mostCards" },
 ];
-
-const { height } = Dimensions.get("window");
 
 export default function Card() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -123,7 +124,7 @@ export default function Card() {
 
   // Animated overlay & content
   const overlayAnim = useRef(new Animated.Value(0)).current;
-  const contentAnim = useRef(new Animated.Value(height)).current;
+  const contentAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   // Add card set modal state
   const [newCardSet, setNewCardSet] = useState({
@@ -168,13 +169,13 @@ export default function Card() {
           useNativeDriver: true,
         }),
         Animated.timing(contentAnim, {
-          toValue: height,
+          toValue: SCREEN_HEIGHT,
           duration: 260,
           useNativeDriver: true,
         }),
       ]).start();
     }
-  }, [filterVisible]);
+  }, [filterVisible, SCREEN_HEIGHT, overlayAnim, contentAnim]);
 
   // Lọc bộ thẻ dựa trên tab và tìm kiếm
   const filterCardSets = () => {
@@ -322,9 +323,9 @@ export default function Card() {
       <View style={styles.searchRow}>
         <Ionicons
           name="search"
-          size={18}
+          size={scale(18)}
           color="#BFC8D6"
-          style={{ marginLeft: 8 }}
+          style={{ marginLeft: scale(8) }}
         />
         <TextInput
           style={styles.searchInput}
@@ -337,7 +338,7 @@ export default function Card() {
           style={styles.filterBtn}
           onPress={() => setFilterVisible(true)}
         >
-          <Ionicons name="options" size={20} color="#BFC8D6" />
+          <Ionicons name="options" size={scale(20)} color="#BFC8D6" />
         </TouchableOpacity>
         {/* Sort */}
         <TouchableOpacity
@@ -347,8 +348,14 @@ export default function Card() {
             setSortMode(sortModes[(idx + 1) % sortModes.length].value);
           }}
         >
-          <Ionicons name="swap-vertical" size={21} color="#BFC8D6" />
-          <Text style={{ color: "#BFC8D6", fontSize: 13, marginLeft: 2 }}>
+          <Ionicons name="swap-vertical" size={scale(21)} color="#BFC8D6" />
+          <Text
+            style={{
+              color: "#BFC8D6",
+              fontSize: scale(13),
+              marginLeft: scale(2),
+            }}
+          >
             {sortModes.find((m) => m.value === sortMode)?.label || "Sắp xếp"}
           </Text>
         </TouchableOpacity>
@@ -361,11 +368,11 @@ export default function Card() {
         keyExtractor={(item) => item.id}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          paddingLeft: 20,
+          paddingLeft: scale(20),
           paddingBottom: 0,
           flexGrow: 1,
         }}
-        style={{ marginBottom: 8 }}
+        style={{ marginBottom: scale(8) }}
         renderItem={({ item: cat }) => (
           <TouchableOpacity
             style={[styles.categoryCard, { backgroundColor: cat.color }]}
@@ -409,7 +416,7 @@ export default function Card() {
             style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
           >
             <ActivityIndicator size="large" color="#2C4BFF" />
-            <Text style={{ color: "#aaa", marginTop: 10 }}>
+            <Text style={{ color: "#aaa", marginTop: scale(10) }}>
               Đang tải dữ liệu...
             </Text>
           </View>
@@ -421,9 +428,9 @@ export default function Card() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             contentContainerStyle={{
-              paddingBottom: 24,
+              paddingBottom: scale(24),
               flexGrow: 1,
-              minHeight: 220,
+              minHeight: scale(220),
             }}
             renderItem={({ item }) => (
               <View style={styles.cardItemBox}>
@@ -445,22 +452,26 @@ export default function Card() {
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        marginTop: 2,
+                        marginTop: scale(2),
                       }}
                     >
-                      <Ionicons name="person" size={13} color="#BFC8D6" />
+                      <Ionicons
+                        name="person"
+                        size={scale(13)}
+                        color="#BFC8D6"
+                      />
                       <Text style={styles.cardAuthor}> {item.author}</Text>
                     </View>
                     <View
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        marginTop: 8,
+                        marginTop: scale(8),
                       }}
                     >
                       <Ionicons
                         name="layers-outline"
-                        size={15}
+                        size={scale(15)}
                         color="#3B5EFF"
                       />
                       <Text style={styles.cardTotalCards}>
@@ -470,28 +481,28 @@ export default function Card() {
                     </View>
                   </View>
                   <TouchableOpacity
-                    style={{ marginLeft: 12 }}
+                    style={{ marginLeft: scale(12) }}
                     onPress={() => toggleSaveCardSet(item.id)}
                   >
                     <MaterialIcons
                       name={item.isSaved ? "bookmark" : "bookmark-border"}
-                      size={25}
+                      size={scale(25)}
                       color={item.isSaved ? "#FFD600" : "#BFC8D6"}
                     />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={{ marginLeft: 2, padding: 6 }}
+                    style={{ marginLeft: scale(2), padding: scale(6) }}
                     onPress={() => openEditModal(item)}
                   >
-                    <Feather name="edit" size={20} color="#3B5EFF" />
+                    <Feather name="edit" size={scale(20)} color="#3B5EFF" />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={{ marginLeft: 2, padding: 6 }}
+                    style={{ marginLeft: scale(2), padding: scale(6) }}
                     onPress={() => handleDeleteCardSet(item.id)}
                   >
                     <Feather
                       name="trash-2"
-                      size={19}
+                      size={scale(19)}
                       color={deletingId === item.id ? "#e74c3c" : "#ccc"}
                     />
                   </TouchableOpacity>
@@ -504,22 +515,26 @@ export default function Card() {
                   flex: 1,
                   alignItems: "center",
                   justifyContent: "center",
-                  marginTop: 50,
+                  marginTop: scale(50),
                 }}
               >
                 <Image
                   source={require("../../assets/images/avatar.png")}
-                  style={{ width: 110, height: 110, marginBottom: 14 }}
+                  style={{
+                    width: scale(110),
+                    height: scale(110),
+                    marginBottom: scale(14),
+                  }}
                 />
-                <Text style={{ color: "#BFC8D6", fontSize: 17 }}>
+                <Text style={{ color: "#BFC8D6", fontSize: scale(17) }}>
                   Không tìm thấy bộ thẻ nào
                 </Text>
                 <TouchableOpacity
                   style={styles.emptyAddBtn}
                   onPress={() => setAddModalVisible(true)}
                 >
-                  <Ionicons name="add" size={22} color="#fff" />
-                  <Text style={{ color: "#fff", marginLeft: 5 }}>
+                  <Ionicons name="add" size={scale(22)} color="#fff" />
+                  <Text style={{ color: "#fff", marginLeft: scale(5) }}>
                     Tạo bộ thẻ mới
                   </Text>
                 </TouchableOpacity>
@@ -534,7 +549,7 @@ export default function Card() {
         style={styles.fab}
         onPress={() => setAddModalVisible(true)}
       >
-        <Ionicons name="add" size={32} color="#fff" />
+        <Ionicons name="add" size={scale(32)} color="#fff" />
       </TouchableOpacity>
 
       {/* Add CardSet Modal */}
@@ -556,7 +571,9 @@ export default function Card() {
                 setNewCardSet((c) => ({ ...c, description: t }))
               }
             />
-            <Text style={{ marginBottom: 7, marginTop: 7 }}>Danh mục</Text>
+            <Text style={{ marginBottom: scale(7), marginTop: scale(7) }}>
+              Danh mục
+            </Text>
             <FlatList
               horizontal
               data={filterCategories}
@@ -618,7 +635,9 @@ export default function Card() {
                 setEditCardSet((c) => ({ ...c, description: t }))
               }
             />
-            <Text style={{ marginBottom: 7, marginTop: 7 }}>Danh mục</Text>
+            <Text style={{ marginBottom: scale(7), marginTop: scale(7) }}>
+              Danh mục
+            </Text>
             <FlatList
               horizontal
               data={filterCategories}
@@ -686,10 +705,10 @@ export default function Card() {
           >
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setFilterVisible(false)}>
-                <Ionicons name="close" size={28} color="#222" />
+                <Ionicons name="close" size={scale(28)} color="#222" />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>Bộ lọc</Text>
-              <View style={{ width: 28 }} />
+              <View style={{ width: scale(28) }} />
             </View>
 
             {/* Categories */}
@@ -737,124 +756,127 @@ export default function Card() {
   );
 }
 
-const { width } = Dimensions.get("window");
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", paddingHorizontal: 0 },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
-    marginBottom: 18,
-    paddingHorizontal: 24,
+    marginTop: scale(8),
+    marginBottom: scale(18),
+    paddingHorizontal: scale(24),
     justifyContent: "space-between",
   },
-  title: { fontSize: 30, fontWeight: "bold", color: "#222" },
-  avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#eee" },
+  title: { fontSize: scale(30), fontWeight: "bold", color: "#222" },
+  avatar: {
+    width: scale(38),
+    height: scale(38),
+    borderRadius: scale(19),
+    backgroundColor: "#eee",
+  },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F7F8FB",
-    borderRadius: 16,
-    marginHorizontal: 24,
-    paddingHorizontal: 8,
-    marginBottom: 18,
-    height: 44,
+    borderRadius: scale(16),
+    marginHorizontal: scale(24),
+    paddingHorizontal: scale(8),
+    marginBottom: scale(18),
+    height: scale(44),
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    marginLeft: 6,
+    fontSize: scale(16),
+    marginLeft: scale(6),
     color: "#222",
     backgroundColor: "transparent",
   },
-  filterBtn: { padding: 6, marginLeft: 10 },
+  filterBtn: { padding: scale(6), marginLeft: scale(10) },
   sortBtn: {
     flexDirection: "row",
     alignItems: "center",
-    marginLeft: 8,
-    padding: 2,
+    marginLeft: scale(8),
+    padding: scale(2),
   },
   categoriesRow: {
-    marginHorizontal: 24,
+    marginHorizontal: scale(24),
   },
   categoryCard: {
-    width: 140,
-    height: 90,
-    borderRadius: 16,
-    marginRight: 14,
+    width: scale(140),
+    height: scale(90),
+    borderRadius: scale(16),
+    marginRight: scale(14),
     alignItems: "flex-start",
     justifyContent: "flex-end",
-    padding: 14,
+    padding: scale(14),
     overflow: "hidden",
   },
   categoryImage: {
     position: "absolute",
-    top: 4,
+    top: scale(4),
     right: 0,
-    width: 80,
-    height: 80,
+    width: scale(80),
+    height: scale(80),
     opacity: 0.95,
   },
-  categoryTitle: { fontSize: 15, fontWeight: "bold", color: "#408BFF" },
+  categoryTitle: { fontSize: scale(15), fontWeight: "bold", color: "#408BFF" },
   tabsRow: {
     flexDirection: "row",
-    marginLeft: 24,
-    marginBottom: 10,
-    marginTop: -470,
+    marginLeft: scale(24),
+    marginBottom: scale(10),
+    marginTop: scale(-400),
     alignItems: "center",
   },
   tab: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginLeft: 8,
-    borderRadius: 16,
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(6),
+    marginLeft: scale(8),
+    borderRadius: scale(16),
     backgroundColor: "transparent",
   },
-  tabText: { fontSize: 15, color: "#BFC8D6", fontWeight: "600" },
+  tabText: { fontSize: scale(15), color: "#BFC8D6", fontWeight: "600" },
   tabActive: {
     backgroundColor: "#3B5EFF",
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 6,
-    marginLeft: 8,
+    borderRadius: scale(16),
+    paddingHorizontal: scale(18),
+    paddingVertical: scale(6),
+    marginLeft: scale(8),
   },
-  tabActiveText: { fontSize: 15, color: "#fff", fontWeight: "bold" },
-  cardItemBox: { marginBottom: 11 },
+  tabActiveText: { fontSize: scale(15), color: "#fff", fontWeight: "bold" },
+  cardItemBox: { marginBottom: scale(11) },
   cardItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 16,
-    marginHorizontal: 24,
-    padding: 16,
+    borderRadius: scale(16),
+    marginHorizontal: scale(24),
+    padding: scale(16),
     shadowColor: "#BFC8D6",
     shadowOpacity: 0.12,
-    shadowRadius: 8,
+    shadowRadius: scale(8),
     elevation: 3,
   },
   cardImageBox: {
-    width: 58,
-    height: 58,
-    borderRadius: 12,
-    marginRight: 16,
+    width: scale(58),
+    height: scale(58),
+    borderRadius: scale(12),
+    marginRight: scale(16),
     backgroundColor: "#F2F2F2",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
   cardImagePlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(8),
     backgroundColor: "#D9DBE9",
   },
-  cardTitle: { fontSize: 17, fontWeight: "bold", color: "#222" },
-  cardAuthor: { fontSize: 13, color: "#BFC8D6", marginLeft: 2 },
+  cardTitle: { fontSize: scale(17), fontWeight: "bold", color: "#222" },
+  cardAuthor: { fontSize: scale(13), color: "#BFC8D6", marginLeft: scale(2) },
   cardTotalCards: {
-    fontSize: 14,
+    fontSize: scale(14),
     color: "#3B5EFF",
-    marginLeft: 2,
+    marginLeft: scale(2),
     fontWeight: "bold",
   },
   // Modal & Overlay
@@ -868,111 +890,111 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     backgroundColor: "#fff",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    minHeight: height * 0.68,
+    borderTopLeftRadius: scale(32),
+    borderTopRightRadius: scale(32),
+    paddingVertical: scale(24),
+    paddingHorizontal: scale(20),
+    minHeight: SCREEN_HEIGHT * 0.68,
     zIndex: 2,
   },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
-  modalTitle: { fontSize: 22, fontWeight: "700", color: "#222" },
+  modalTitle: { fontSize: scale(22), fontWeight: "700", color: "#222" },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: scale(17),
     fontWeight: "600",
-    marginVertical: 10,
+    marginVertical: scale(10),
     color: "#232323",
   },
   rowWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 8,
+    gap: scale(10),
+    marginBottom: scale(8),
   },
   chip: {
     backgroundColor: "#F4F4FC",
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    margin: 4,
+    borderRadius: scale(10),
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(8),
+    margin: scale(4),
   },
   chipActive: { backgroundColor: "#2C4BFF" },
-  chipText: { color: "#b9b9c9", fontWeight: "500", fontSize: 15 },
+  chipText: { color: "#b9b9c9", fontWeight: "500", fontSize: scale(15) },
   chipTextActive: { color: "#fff" },
   btnRow: {
     flexDirection: "row",
-    marginTop: 18,
-    marginBottom: 10,
+    marginTop: scale(18),
+    marginBottom: scale(10),
     justifyContent: "space-between",
   },
   clearBtn: {
     borderWidth: 1,
     borderColor: "#2C4BFF",
     backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 30,
+    borderRadius: scale(12),
+    paddingVertical: scale(13),
+    paddingHorizontal: scale(30),
   },
   applyBtn: {
     backgroundColor: "#2C4BFF",
-    borderRadius: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 30,
+    borderRadius: scale(12),
+    paddingVertical: scale(13),
+    paddingHorizontal: scale(30),
   },
-  btnText: { fontSize: 17, fontWeight: "600" },
+  btnText: { fontSize: scale(17), fontWeight: "600" },
   modalContent: {
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 22,
-    width: width * 0.85,
+    borderRadius: scale(18),
+    padding: scale(22),
+    width: SCREEN_WIDTH * 0.85,
     shadowColor: "#222",
     shadowOpacity: 0.11,
-    shadowRadius: 10,
+    shadowRadius: scale(10),
     elevation: 5,
   },
   input: {
     borderWidth: 1,
     borderColor: "#E4E6EF",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    fontSize: 16,
+    borderRadius: scale(8),
+    padding: scale(10),
+    marginBottom: scale(10),
+    fontSize: scale(16),
     color: "#222",
     backgroundColor: "#F7F8FB",
   },
   modalBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginLeft: 10,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(10),
+    borderRadius: scale(8),
+    marginLeft: scale(10),
     backgroundColor: "#F4F4FB",
-    marginTop: 6,
+    marginTop: scale(6),
   },
   fab: {
     position: "absolute",
-    right: 32,
-    bottom: 36,
+    right: scale(32),
+    bottom: scale(36),
     backgroundColor: "#3B5EFF",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: scale(56),
+    height: scale(56),
+    borderRadius: scale(28),
     alignItems: "center",
     justifyContent: "center",
     elevation: 6,
     zIndex: 20,
   },
   emptyAddBtn: {
-    marginTop: 18,
+    marginTop: scale(18),
     backgroundColor: "#3B5EFF",
-    borderRadius: 18,
+    borderRadius: scale(18),
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 9,
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(9),
   },
 });

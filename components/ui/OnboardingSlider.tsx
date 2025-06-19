@@ -1,4 +1,3 @@
-//components/ui/OnboardingSlider.tsx
 import React from "react";
 import {
   View,
@@ -11,7 +10,8 @@ import {
 } from "react-native";
 import { Colors } from "../../constants/Colors";
 
-const { width } = Dimensions.get("window");
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
 const slides = [
   {
@@ -80,7 +80,9 @@ const OnboardingSlider: React.FC<Props> = ({ onFinish, onSignUp, onLogin }) => {
               styles.dot,
               {
                 backgroundColor: current === idx ? theme.tint : theme.muted,
-                width: current === idx ? 18 : 8,
+                width: current === idx ? scale(18) : scale(8),
+                height: scale(8),
+                borderRadius: scale(4),
               },
             ]}
           />
@@ -131,81 +133,79 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center", // căn giữa dọc
-    // paddingTop: 48, // có thể bỏ hoặc giữ lại nếu muốn khoảng cách trên
+    justifyContent: "center",
   },
   skip: {
     position: "absolute",
-    top: 48,
-    right: 24,
+    top: scale(48),
+    right: scale(24),
     zIndex: 10,
   },
   skipText: {
-    fontSize: 16,
+    fontSize: scale(16),
   },
   image: {
-    width: width * 0.7,
-    height: width * 0.7,
-    marginTop: 24,
-    marginBottom: 32,
+    width: SCREEN_WIDTH * 0.7,
+    height: SCREEN_WIDTH * 0.7,
+    marginTop: scale(24),
+    marginBottom: scale(32),
   },
   title: {
-    fontSize: 22,
+    fontSize: scale(22),
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 14,
+    marginBottom: scale(14),
   },
   description: {
-    fontSize: 16,
+    fontSize: scale(16),
     textAlign: "center",
     maxWidth: "80%",
-    marginBottom: 26,
+    marginBottom: scale(26),
   },
   dots: {
     flexDirection: "row",
-    marginBottom: 34,
+    marginBottom: scale(34),
   },
   dot: {
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
+    marginHorizontal: scale(4),
   },
   buttonRow: {
     flexDirection: "row",
     justifyContent: "center",
     width: "80%",
-    marginTop: 16,
+    marginTop: scale(16),
   },
   signUpBtn: {
     flex: 1,
-    borderRadius: 8,
-    paddingVertical: 14,
-    marginRight: 10,
+    borderRadius: scale(8),
+    paddingVertical: scale(14),
+    marginRight: scale(10),
     alignItems: "center",
   },
   signUpText: {
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: scale(16),
   },
   loginBtn: {
     flex: 1,
-    borderRadius: 8,
-    paddingVertical: 14,
+    borderRadius: scale(8),
+    paddingVertical: scale(14),
     alignItems: "center",
   },
   loginText: {
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: scale(16),
   },
   nextBtn: {
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    marginTop: 16,
+    borderRadius: scale(8),
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(32),
+    marginTop: scale(16),
+    alignItems: "center",
   },
   nextText: {
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: scale(16),
   },
 });
 

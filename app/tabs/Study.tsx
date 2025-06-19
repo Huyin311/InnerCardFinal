@@ -15,7 +15,9 @@ import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import * as Speech from "expo-speech";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const { width } = Dimensions.get("window");
+// Responsive helpers
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
 const MAIN_BG_COLOR = "#fffff9";
 const fallbackImage = require("../../assets/images/avatar.png");
@@ -116,8 +118,9 @@ const flashcards: Flashcard[] = [
   },
 ];
 
-const CARD_WIDTH = width * 0.83;
-const CARD_HEIGHT = 360;
+// Responsive card size
+const CARD_WIDTH = SCREEN_WIDTH * 0.83;
+const CARD_HEIGHT = scale(360);
 const SWIPE_THRESHOLD = CARD_WIDTH * 0.27;
 
 export default function Study() {
@@ -134,6 +137,16 @@ export default function Study() {
   const [swipeFeedback, setSwipeFeedback] = useState<
     null | "known" | "unknown"
   >(null);
+
+  // Để đảm bảo overlay feedback không bị nháy ở thẻ tiếp theo:
+  const [pendingClearFeedback, setPendingClearFeedback] = useState(false);
+
+  // Lưu giá trị swipeX an toàn bằng state
+  const [swipeX, setSwipeX] = useState(0);
+
+  // Hiệu ứng bật lên khi thẻ mới vào
+  const [isCardEntering, setIsCardEntering] = useState(true);
+  const popAnim = useRef(new Animated.Value(1)).current;
 
   // Flip animation
   const flipAnim = useRef(new Animated.Value(0)).current;
@@ -159,14 +172,35 @@ export default function Study() {
     outputRange: ["180deg", "360deg"],
   });
 
+  // Khi chuyển thẻ, reset feedback và set isCardEntering true (pop effect chỉ chạy ở effect bên dưới)
   useEffect(() => {
     setFlipped(false);
+    setSwipeFeedback(null);
     Animated.timing(flipAnim, {
       toValue: 0,
       useNativeDriver: true,
       duration: 160,
     }).start();
+    setIsCardEntering(true);
   }, [current]);
+
+  // Hiệu ứng pop chỉ chạy khi thẻ mới xuất hiện (sau khi swipeAnim đã về 0)
+  useEffect(() => {
+    if (!isCardEntering) return;
+    popAnim.setValue(0.75);
+    Animated.spring(popAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 60,
+    }).start(() => setIsCardEntering(false));
+  }, [isCardEntering, popAnim]);
+
+  // Cập nhật swipeX liên tục an toàn
+  useEffect(() => {
+    const id = swipeAnim.x.addListener(({ value }) => setSwipeX(value));
+    return () => swipeAnim.x.removeListener(id);
+  }, [swipeAnim.x]);
 
   useEffect(() => {
     (async () => {
@@ -206,7 +240,6 @@ export default function Study() {
     return () => {
       isMounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current]);
 
   // Flip logic
@@ -231,9 +264,10 @@ export default function Study() {
     }
   };
 
-  // Swipe logic
+  // Swipe logic - fix overlay nháy ở thẻ tiếp theo
   const animateOutAndNext = (direction: "known" | "unknown") => {
     setFeedback(direction);
+    setPendingClearFeedback(true);
     Animated.parallel([
       Animated.timing(opacityAnim, {
         toValue: 1,
@@ -250,7 +284,6 @@ export default function Study() {
       }),
     ]).start(() => {
       setTimeout(() => {
-        setFeedback(null);
         setSwipeFeedback(null);
         opacityAnim.setValue(1);
         swipeAnim.setValue({ x: 0, y: 0 });
@@ -258,12 +291,25 @@ export default function Study() {
         flipAnim.setValue(0);
         if (direction === "known") setKnown((arr) => [...arr, current]);
         else setUnknown((arr) => [...arr, current]);
-        // Push the current card index to historyStack
         setHistoryStack((stack) => [...stack, current]);
         setCurrent((prev) => prev + 1);
+        setIsCardEntering(true); // Chỉ chạy hiệu ứng pop khi thẻ mới vào!
       }, 120);
     });
   };
+
+  // Theo dõi swipeAnim.x và current, clear feedback khi về giữa
+  useEffect(() => {
+    if (!pendingClearFeedback) return;
+    const id = swipeAnim.x.addListener(({ value }) => {
+      if (Math.abs(value) < 1) {
+        setFeedback(null);
+        setPendingClearFeedback(false);
+        swipeAnim.x.removeListener(id);
+      }
+    });
+    return () => swipeAnim.x.removeListener(id);
+  }, [pendingClearFeedback, swipeAnim.x]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -312,6 +358,7 @@ export default function Study() {
     setFeedback(null);
     setSwiping(false);
     setSwipeFeedback(null);
+    setIsCardEntering(true);
   };
 
   // TS safe get imageUrl
@@ -324,22 +371,23 @@ export default function Study() {
   }
 
   // Overlays
-  const feedbackOverlay = feedback ? (
-    <Animated.View
-      style={[
-        StyleSheet.absoluteFill,
-        styles.animatedOverlay,
-        {
-          backgroundColor: feedback === "known" ? "#2ecc71" : "#e74c3c",
-          opacity: 0.93,
-        },
-      ]}
-    >
-      <Text style={styles.overlayText}>
-        {feedback === "known" ? "ĐÃ BIẾT" : "CHƯA BIẾT"}
-      </Text>
-    </Animated.View>
-  ) : null;
+  const feedbackOverlay =
+    feedback && !swiping && Math.abs(swipeX) < 1 ? (
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          styles.animatedOverlay,
+          {
+            backgroundColor: feedback === "known" ? "#2ecc71" : "#e74c3c",
+            opacity: 0.93,
+          },
+        ]}
+      >
+        <Text style={styles.overlayText}>
+          {feedback === "known" ? "ĐÃ BIẾT" : "CHƯA BIẾT"}
+        </Text>
+      </Animated.View>
+    ) : null;
 
   const swipeOverlay =
     swipeFeedback && !feedback ? (
@@ -370,26 +418,26 @@ export default function Study() {
             <View style={styles.doneCardWrap}>
               <Ionicons
                 name="checkmark-circle"
-                size={80}
+                size={scale(80)}
                 color="#2ecc71"
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: scale(16) }}
               />
               <Text
                 style={{
-                  fontSize: 26,
+                  fontSize: scale(26),
                   fontWeight: "bold",
                   color: "#2ecc71",
-                  marginBottom: 6,
+                  marginBottom: scale(6),
                 }}
               >
                 Chúc mừng!
               </Text>
               <Text
                 style={{
-                  fontSize: 20,
+                  fontSize: scale(20),
                   color: "#222",
                   fontWeight: "600",
-                  marginBottom: 24,
+                  marginBottom: scale(24),
                 }}
               >
                 Bạn đã học xong tất cả {totalCards} thẻ
@@ -398,17 +446,25 @@ export default function Study() {
                 style={{
                   flexDirection: "row",
                   justifyContent: "center",
-                  gap: 24,
-                  marginBottom: 10,
+                  gap: scale(24),
+                  marginBottom: scale(10),
                 }}
               >
                 <Text
-                  style={{ fontSize: 17, color: "#27ae60", fontWeight: "bold" }}
+                  style={{
+                    fontSize: scale(17),
+                    color: "#27ae60",
+                    fontWeight: "bold",
+                  }}
                 >
                   Đã biết: {known.length}
                 </Text>
                 <Text
-                  style={{ fontSize: 17, color: "#e74c3c", fontWeight: "bold" }}
+                  style={{
+                    fontSize: scale(17),
+                    color: "#e74c3c",
+                    fontWeight: "bold",
+                  }}
                 >
                   Chưa biết: {unknown.length}
                 </Text>
@@ -416,11 +472,11 @@ export default function Study() {
               {starred.length > 0 && (
                 <Text
                   style={{
-                    fontSize: 15,
+                    fontSize: scale(15),
                     color: "#FFD600",
                     marginTop: 0,
                     fontWeight: "bold",
-                    marginBottom: 10,
+                    marginBottom: scale(10),
                   }}
                 >
                   ⭐ Đánh dấu:{" "}
@@ -436,7 +492,7 @@ export default function Study() {
               onPress={goBack}
               disabled={historyStack.length === 0}
             >
-              <Ionicons name="chevron-back" size={26} color="#fff" />
+              <Ionicons name="chevron-back" size={scale(26)} color="#fff" />
               <Text style={styles.btnLabel}>Quay lại thẻ trước</Text>
             </TouchableOpacity>
           </View>
@@ -475,7 +531,7 @@ export default function Study() {
           </View>
         </View>
         {/* Card swipe + flip + feedback overlay */}
-        <View style={{ alignItems: "center", marginBottom: 32 }}>
+        <View style={{ alignItems: "center", marginBottom: scale(32) }}>
           <Animated.View
             {...(!isDone ? panResponder.panHandlers : {})}
             style={[
@@ -483,6 +539,7 @@ export default function Study() {
               {
                 opacity: opacityAnim,
                 transform: [
+                  { scale: popAnim }, // hiệu ứng bật lên
                   { translateX: swipeAnim.x },
                   { translateY: swipeAnim.y },
                   {
@@ -518,7 +575,7 @@ export default function Study() {
               <View
                 style={[
                   StyleSheet.absoluteFillObject,
-                  { backgroundColor: cardBgColor, borderRadius: 24 },
+                  { backgroundColor: cardBgColor, borderRadius: scale(24) },
                 ]}
               />
               <TouchableOpacity
@@ -540,7 +597,7 @@ export default function Study() {
                 >
                   <FontAwesome
                     name={starred.includes(current) ? "star" : "star-o"}
-                    size={26}
+                    size={scale(26)}
                     color={starred.includes(current) ? "#FFD600" : "#bfc8d6"}
                   />
                 </TouchableOpacity>
@@ -552,7 +609,11 @@ export default function Study() {
                       Speech.speak(card.front, { language: "en" });
                   }}
                 >
-                  <Ionicons name="volume-high" size={26} color="#3B5EFF" />
+                  <Ionicons
+                    name="volume-high"
+                    size={scale(26)}
+                    color="#3B5EFF"
+                  />
                 </TouchableOpacity>
                 <View
                   style={{
@@ -566,7 +627,7 @@ export default function Study() {
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      marginTop: 6,
+                      marginTop: scale(6),
                     }}
                   >
                     {card && card.partOfSpeech && (
@@ -582,7 +643,6 @@ export default function Study() {
                     )}
                   </View>
                 </View>
-                {/*<Text style={styles.flipHintFront}>(Nhấn để lật mặt sau)</Text>*/}
               </TouchableOpacity>
             </Animated.View>
             {/* Mặt sau */}
@@ -600,7 +660,7 @@ export default function Study() {
               <View
                 style={[
                   StyleSheet.absoluteFillObject,
-                  { backgroundColor: cardBgColor, borderRadius: 24 },
+                  { backgroundColor: cardBgColor, borderRadius: scale(24) },
                 ]}
               />
               <TouchableOpacity
@@ -618,7 +678,11 @@ export default function Study() {
                       Speech.speak(card.example, { language: "en" });
                   }}
                 >
-                  <Ionicons name="volume-high" size={26} color="#3B5EFF" />
+                  <Ionicons
+                    name="volume-high"
+                    size={scale(26)}
+                    color="#3B5EFF"
+                  />
                 </TouchableOpacity>
                 <View
                   style={{
@@ -630,8 +694,8 @@ export default function Study() {
                   {loadingImage ? (
                     <View
                       style={{
-                        width: 140,
-                        height: 140,
+                        width: scale(140),
+                        height: scale(140),
                         justifyContent: "center",
                         alignItems: "center",
                       }}
@@ -646,7 +710,6 @@ export default function Study() {
                     <Text style={styles.cardBackExample}>{card.example}</Text>
                   )}
                 </View>
-                {/*<Text style={styles.flipHintBack}>(Nhấn để lật mặt trước)</Text>*/}
               </TouchableOpacity>
             </Animated.View>
             {swipeOverlay}
@@ -667,21 +730,21 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   title: {
-    fontSize: 28,
+    fontSize: scale(28),
     fontWeight: "bold",
-    marginBottom: 18,
+    marginBottom: scale(18),
     color: "#2C4BFF",
   },
   cardCommon: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    borderRadius: 24,
+    borderRadius: scale(24),
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
     shadowColor: "#222",
     shadowOpacity: 0.09,
-    shadowRadius: 12,
+    shadowRadius: scale(12),
     elevation: 3,
     padding: 0,
     overflow: "visible",
@@ -690,101 +753,101 @@ const styles = StyleSheet.create({
   cardFace: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    borderRadius: 24,
+    borderRadius: scale(24),
     alignItems: "center",
     justifyContent: "center",
     position: "absolute",
     top: 0,
     left: 0,
-    padding: 28,
+    padding: scale(28),
     backfaceVisibility: "hidden",
     overflow: "hidden",
   },
   cardImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 18,
-    marginBottom: 18,
+    width: scale(140),
+    height: scale(140),
+    borderRadius: scale(18),
+    marginBottom: scale(18),
     resizeMode: "contain",
   },
   cardFrontVocab: {
-    fontSize: 30,
+    fontSize: scale(30),
     fontWeight: "bold",
     color: "#2C4BFF",
     textAlign: "center",
-    marginBottom: 6,
+    marginBottom: scale(6),
   },
   cardFrontPOS: {
-    fontSize: 19,
+    fontSize: scale(19),
     color: "#444",
     fontWeight: "bold",
-    marginRight: 8,
+    marginRight: scale(8),
   },
   cardFrontPhonetic: {
-    fontSize: 18,
+    fontSize: scale(18),
     color: "#888",
     fontStyle: "italic",
   },
   cardBackMeaning: {
-    fontSize: 26,
+    fontSize: scale(26),
     color: "#2C4BFF",
     fontWeight: "bold",
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: scale(8),
+    marginBottom: scale(12),
     textAlign: "center",
   },
   cardBackExample: {
-    fontSize: 16,
+    fontSize: scale(16),
     color: "#333",
     fontStyle: "italic",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: scale(8),
   },
   flipHintFront: {
     color: "#aaa",
-    fontSize: 13,
+    fontSize: scale(13),
     position: "absolute",
-    bottom: 16,
+    bottom: scale(16),
     left: 0,
     right: 0,
     textAlign: "center",
   },
   flipHintBack: {
     color: "#aaa",
-    fontSize: 13,
+    fontSize: scale(13),
     position: "absolute",
-    bottom: 16,
+    bottom: scale(16),
     left: 0,
     right: 0,
     textAlign: "center",
   },
   starTopLeft: {
     position: "absolute",
-    top: 14,
-    left: 18,
+    top: scale(14),
+    left: scale(18),
     zIndex: 10,
-    padding: 5,
+    padding: scale(5),
   },
   speakerTopRight: {
     position: "absolute",
-    top: 14,
-    right: 18,
+    top: scale(14),
+    right: scale(18),
     zIndex: 10,
-    padding: 5,
+    padding: scale(5),
   },
   animatedOverlay: {
-    borderRadius: 28,
+    borderRadius: scale(28),
     alignItems: "center",
     justifyContent: "center",
     zIndex: 99,
     flex: 1,
   },
   overlayText: {
-    fontSize: 40,
+    fontSize: scale(40),
     color: "#fff",
     fontWeight: "bold",
     textShadowColor: "#0008",
-    textShadowRadius: 8,
+    textShadowRadius: scale(8),
     textShadowOffset: { width: 0, height: 2 },
     marginTop: 0,
     marginBottom: 0,
@@ -792,65 +855,70 @@ const styles = StyleSheet.create({
   },
   bottomBackBtn: {
     position: "absolute",
-    left: 28,
-    bottom: 36,
+    left: scale(28),
+    bottom: scale(36),
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#3B5EFF",
-    borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: scale(22),
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
     elevation: 2,
     shadowColor: "#000",
     shadowOpacity: 0.1,
-    shadowRadius: 7,
+    shadowRadius: scale(7),
     shadowOffset: { width: 0, height: 2 },
   },
-  btnLabel: { color: "#fff", fontWeight: "bold", fontSize: 16, marginLeft: 8 },
+  btnLabel: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: scale(16),
+    marginLeft: scale(8),
+  },
   doneCardWrap: {
     width: CARD_WIDTH,
     minHeight: CARD_HEIGHT * 0.83,
     backgroundColor: "#fff",
-    borderRadius: 28,
+    borderRadius: scale(28),
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#222",
     shadowOpacity: 0.09,
-    shadowRadius: 12,
+    shadowRadius: scale(12),
     elevation: 3,
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 24,
-    marginBottom: 24,
+    paddingHorizontal: scale(24),
+    paddingTop: scale(32),
+    paddingBottom: scale(24),
+    marginBottom: scale(24),
   },
-  progress: { marginTop: 10, alignItems: "center" },
+  progress: { marginTop: scale(10), alignItems: "center" },
   progressBox: {
-    marginTop: 2,
-    marginBottom: 16,
+    marginTop: scale(2),
+    marginBottom: scale(16),
     alignItems: "center",
   },
   progressText: {
-    fontSize: 15,
+    fontSize: scale(15),
     color: "#3B5EFF",
     fontWeight: "600",
-    marginBottom: 5,
+    marginBottom: scale(5),
   },
   progressBarBg: {
-    height: 7,
-    width: width * 0.6,
+    height: scale(7),
+    width: SCREEN_WIDTH * 0.6,
     backgroundColor: "#eee",
-    borderRadius: 10,
+    borderRadius: scale(10),
     overflow: "hidden",
   },
   progressBarFill: {
-    height: 7,
+    height: scale(7),
     backgroundColor: "#3B5EFF",
-    borderRadius: 10,
+    borderRadius: scale(10),
   },
   starredWords: {
     color: "#FFD600",
-    fontSize: 15,
-    marginTop: 6,
+    fontSize: scale(15),
+    marginTop: scale(6),
     fontWeight: "bold",
   },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
