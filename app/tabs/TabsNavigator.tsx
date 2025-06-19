@@ -4,6 +4,7 @@ import Home from "./home";
 import Card from "./Card";
 import Study from "./Study";
 import Group from "./Group";
+import Setting from "./Setting";
 import { Ionicons } from "@expo/vector-icons";
 
 const Tab = createBottomTabNavigator();
@@ -20,10 +21,13 @@ export default function TabsNavigator() {
             iconName = focused ? "home" : "home-outline";
           } else if (route.name === "Card") {
             iconName = focused ? "albums" : "albums-outline";
-          } else if (route.name === "Study")
+          } else if (route.name === "Study") {
             iconName = focused ? "book" : "book-outline";
-          else if (route.name === "Group")
+          } else if (route.name === "Group") {
             iconName = focused ? "people" : "people-outline";
+          } else if (route.name === "Setting") {
+            iconName = focused ? "settings" : "settings-outline";
+          }
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -35,6 +39,7 @@ export default function TabsNavigator() {
       <Tab.Screen name="Card" component={Card} />
       <Tab.Screen name="Study" component={Study} />
       <Tab.Screen name="Group" component={Group} />
+      <Tab.Screen name="Setting" component={Setting} />
     </Tab.Navigator>
   );
 }

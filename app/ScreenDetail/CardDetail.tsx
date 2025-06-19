@@ -20,7 +20,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 
 // Responsive helpers
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
 // Ảnh mặc định
@@ -89,13 +89,25 @@ const initialCardSet = {
   ],
 };
 
-// Lấy phiên âm, từ loại, nghĩa, ví dụ từ API
+// Dịch nghĩa tiếng Anh sang tiếng Việt ngắn gọn (Google Translate API free)
+async function translateToVietnamese(word: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(word)}`,
+    );
+    const data = await res.json();
+    // data[0][0][0] là nghĩa dịch sang tiếng Việt ngắn gọn
+    return data?.[0]?.[0]?.[0] || "";
+  } catch {
+    return "";
+  }
+}
+
+// Lấy phiên âm, từ loại, ví dụ, nghĩa Việt từ API
 async function fetchWordData(word: string) {
   try {
     const res = await fetch(
-      `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(
-        word,
-      )}`,
+      `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`,
     );
     const data = await res.json();
     let phonetic = "",
@@ -117,21 +129,8 @@ async function fetchWordData(word: string) {
         "";
       audio = data[0].phonetics?.find((p: any) => p.audio)?.audio || "";
     }
-    let viMeaning = "";
-    try {
-      const resVi = await fetch(
-        `https://api.dictionaryapi.dev/api/v2/entries/vi/${encodeURIComponent(
-          word,
-        )}`,
-      );
-      const dataVi = await resVi.json();
-      if (
-        Array.isArray(dataVi) &&
-        dataVi[0]?.meanings?.[0]?.definitions?.[0]?.definition
-      ) {
-        viMeaning = dataVi[0].meanings[0].definitions[0].definition;
-      }
-    } catch {}
+    // Dịch nghĩa tiếng Việt ngắn gọn cho từ/cụm từ
+    const viMeaning = await translateToVietnamese(word);
     return {
       phonetic,
       partOfSpeech,
@@ -548,23 +547,18 @@ export default function CardDetail() {
       {/* Modal thêm thẻ mới */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setModalVisible(false)}
-          />
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={styles.centeredModalWrapper}
+            style={{
+              flex: 1,
+              width: "100%",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
             keyboardVerticalOffset={Platform.OS === "ios" ? scale(40) : 0}
           >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={(e) => e.stopPropagation()}
-              style={[
-                styles.modalContent,
-                { marginTop: scale(70), marginBottom: scale(30) },
-              ]}
+            <View
+              style={[styles.modalContent, { maxHeight: SCREEN_HEIGHT * 0.85 }]}
             >
               <ScrollView
                 contentContainerStyle={{
@@ -573,7 +567,6 @@ export default function CardDetail() {
                 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
-                style={{ maxHeight: scale(500) }}
               >
                 <Text style={styles.modalTitle}>Thêm thẻ mới</Text>
                 {/* Lựa chọn thêm từng thẻ hoặc hàng loạt */}
@@ -633,9 +626,7 @@ export default function CardDetail() {
                     onPress={handleAutoFill}
                     disabled={loadingAuto}
                   >
-                    <Text>
-                      {loadingAuto ? "Đang lấy dữ liệu..." : "Tự động gợi ý"}
-                    </Text>
+                    <Text>{loadingAuto ? "..." : "Tự động gợi ý"}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalBtn, { flex: 1, marginLeft: scale(8) }]}
@@ -728,7 +719,7 @@ export default function CardDetail() {
                   </TouchableOpacity>
                 </View>
               </ScrollView>
-            </TouchableOpacity>
+            </View>
           </KeyboardAvoidingView>
         </View>
       </Modal>
@@ -1023,7 +1014,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.11,
     shadowRadius: scale(10),
     elevation: 5,
-    maxHeight: scale(520),
+    // maxHeight: scale(520), // Đã bỏ dòng này để sử dụng maxHeight động
   },
   modalTitle: {
     fontSize: scale(19),

@@ -115,6 +115,9 @@ export default function GroupDetail({ navigation }: any) {
       case "activities":
         navigation.navigate("GroupActivities");
         break;
+      case "quiz":
+        navigation.navigate("GroupQuizScreen");
+        break;
       case "settings":
         navigation.navigate("GroupSetting"); // Đưa tất cả chức năng quản trị vào màn settings
         break;

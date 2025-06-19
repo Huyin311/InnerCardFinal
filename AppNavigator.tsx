@@ -6,14 +6,17 @@ import SignupScreen from "./app/signup";
 import OnboardingScreen from "./app/onboarding";
 import TabsNavigator from "./app/tabs/TabsNavigator";
 import CardDetailScreen from "./app/ScreenDetail/CardDetail";
-import StudyScreen from "./app/tabs/Study"; // Thêm dòng này
+import StudyScreen from "./app/tabs/Study";
 import GroupDetailScreen from "./app/tabs/GroupDetail";
 import MemberGroup from "./app/tabs/MemberGroup";
 import MemberInfo from "./app/tabs/MemberInfo";
 import GroupAnnouncements from "@/app/tabs/GroupAnnouncements";
 import GroupActivities from "@/app/tabs/GroupActivities";
 import GroupSetting from "./app/tabs/GroupSetting";
-import { GroupQuizScreen } from "./app/tabs/GroupQuizScreen";
+import GroupQuizScreen from "./app/tabs/GroupQuizScreen";
+import GroupQuizCreateScreen from "./app/tabs/GroupQuizCreateScreen";
+import GroupQuizDetailScreen from "./app/tabs/GroupQuizDetailScreen";
+import ProfileScreen from "./app/tabs/Profile";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -29,6 +32,9 @@ export type RootStackParamList = {
   GroupActivities: undefined;
   GroupSetting: undefined;
   GroupQuizScreen: undefined;
+  GroupQuizCreateScreen: undefined;
+  GroupQuizDetailScreen: undefined;
+  Profile: undefined; // Đã sửa lại là Profile
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -56,6 +62,15 @@ export default function AppNavigator() {
         <Stack.Screen name="GroupActivities" component={GroupActivities} />
         <Stack.Screen name="GroupSetting" component={GroupSetting} />
         <Stack.Screen name="GroupQuizScreen" component={GroupQuizScreen} />
+        <Stack.Screen
+          name="GroupQuizCreateScreen"
+          component={GroupQuizCreateScreen}
+        />
+        <Stack.Screen
+          name="GroupQuizDetailScreen"
+          component={GroupQuizDetailScreen}
+        />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
