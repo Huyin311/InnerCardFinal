@@ -13,92 +13,153 @@ import {
   Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useDarkMode } from "../DarkModeContext";
+import { useLanguage } from "../LanguageContext";
+import { lightTheme, darkTheme } from "../theme";
 
 // Responsive helpers
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
-// Giả lập dữ liệu thành viên
-const members = [
+// Đa ngữ động
+const TEXT = {
+  groupMembers: { vi: "Thành viên nhóm", en: "Group Members" },
+  owner: { vi: "Chủ nhóm", en: "Owner" },
+  admin: { vi: "Quản trị viên", en: "Admin" },
+  member: { vi: "Thành viên", en: "Member" },
+  noMember: { vi: "Chưa có thành viên nào.", en: "No members yet." },
+  view: { vi: "Xem thông tin", en: "View info" },
+  promote: {
+    vi: "Thăng quyền (Thành viên → Quản trị)",
+    en: "Promote (Member → Admin)",
+  },
+  demote: {
+    vi: "Giáng quyền (Quản trị → Thành viên)",
+    en: "Demote (Admin → Member)",
+  },
+  remove: { vi: "Xóa khỏi nhóm", en: "Remove from group" },
+  promoteTitle: { vi: "Thăng quyền", en: "Promote" },
+  promoteMsg: {
+    vi: "Bạn muốn thăng {name} thành quản trị viên? (chức năng mẫu)",
+    en: "Promote {name} to admin? (demo)",
+  },
+  demoteTitle: { vi: "Giáng quyền", en: "Demote" },
+  demoteMsg: {
+    vi: "Bạn muốn giáng {name} xuống thành viên? (chức năng mẫu)",
+    en: "Demote {name} to member? (demo)",
+  },
+  removeTitle: { vi: "Xóa thành viên", en: "Remove member" },
+  removeMsg: {
+    vi: "Bạn chắc chắn muốn xóa {name} khỏi nhóm?",
+    en: "Are you sure to remove {name} from the group?",
+  },
+  cancel: { vi: "Huỷ", en: "Cancel" },
+  removed: { vi: "Đã xóa", en: "Removed" },
+  removedMsg: {
+    vi: "{name} đã bị xóa khỏi nhóm (mẫu)",
+    en: "{name} was removed from the group (demo)",
+  },
+};
+
+// Giả lập dữ liệu thành viên (role lưu key, tag sẽ tự động vi/en)
+const DUMMY_MEMBERS = [
   {
     id: "u1",
     name: "Huy Nguyen",
     avatar: require("../../assets/images/avatar.png"),
-    role: "Chủ nhóm",
+    role: "owner",
   },
   {
     id: "u2",
     name: "Lan Pham",
     avatar: require("../../assets/images/avatar.png"),
-    role: "Thành viên",
+    role: "member",
   },
   {
     id: "u3",
     name: "Minh Tran",
     avatar: require("../../assets/images/avatar.png"),
-    role: "Thành viên",
+    role: "member",
   },
-  // ... thêm thành viên nếu cần
 ];
 
 // Đề xuất các chức năng quản lý thành viên
-const memberOptions = [
-  {
-    key: "view",
-    icon: "person-circle-outline",
-    label: "Xem thông tin",
-    color: "#4F8CFF",
-    onPress: (member: any, navigation: any) =>
-      navigation.navigate("MemberInfo", { member }),
-  },
-  {
-    key: "promote",
-    icon: "arrow-up-circle-outline",
-    label: "Thăng quyền (Thành viên → Quản trị)",
-    color: "#00C48C",
-    onPress: (member: any) =>
-      Alert.alert(
-        "Thăng quyền",
-        `Bạn muốn thăng ${member.name} thành quản trị viên? (chức năng mẫu)`,
-      ),
-    onlyForMember: true,
-  },
-  {
-    key: "demote",
-    icon: "arrow-down-circle-outline",
-    label: "Giáng quyền (Quản trị → Thành viên)",
-    color: "#FFB300",
-    onPress: (member: any) =>
-      Alert.alert(
-        "Giáng quyền",
-        `Bạn muốn giáng ${member.name} xuống thành viên? (chức năng mẫu)`,
-      ),
-    onlyForAdmin: true,
-  },
-  {
-    key: "remove",
-    icon: "person-remove-outline",
-    label: "Xóa khỏi nhóm",
-    color: "#e74c3c",
-    onPress: (member: any) =>
-      Alert.alert(
-        "Xóa thành viên",
-        `Bạn chắc chắn muốn xóa ${member.name} khỏi nhóm?`,
-        [
-          { text: "Huỷ", style: "cancel" },
-          {
-            text: "Xóa",
-            style: "destructive",
-            onPress: () =>
-              Alert.alert("Đã xóa", `${member.name} đã bị xóa khỏi nhóm (mẫu)`),
-          },
-        ],
-      ),
-    onlyForOthers: true,
-  },
-];
+function getMemberOptions(lang: "vi" | "en") {
+  return [
+    {
+      key: "view",
+      icon: "person-circle-outline",
+      label: TEXT.view[lang],
+      color: "#4F8CFF",
+      onPress: (member: any, navigation: any) =>
+        navigation.navigate("MemberInfo", { member }),
+    },
+    {
+      key: "promote",
+      icon: "arrow-up-circle-outline",
+      label: TEXT.promote[lang],
+      color: "#00C48C",
+      onPress: (
+        member: any,
+        navigation: any, // để đồng nhất kiểu hàm
+      ) =>
+        Alert.alert(
+          TEXT.promoteTitle[lang],
+          TEXT.promoteMsg[lang].replace("{name}", member.name),
+        ),
+      onlyForMember: true,
+    },
+    {
+      key: "demote",
+      icon: "arrow-down-circle-outline",
+      label: TEXT.demote[lang],
+      color: "#FFB300",
+      onPress: (
+        member: any,
+        navigation: any, // để đồng nhất kiểu hàm
+      ) =>
+        Alert.alert(
+          TEXT.demoteTitle[lang],
+          TEXT.demoteMsg[lang].replace("{name}", member.name),
+        ),
+      onlyForAdmin: true,
+    },
+    {
+      key: "remove",
+      icon: "person-remove-outline",
+      label: TEXT.remove[lang],
+      color: "#e74c3c",
+      onPress: (
+        member: any,
+        navigation: any, // để đồng nhất kiểu hàm
+      ) =>
+        Alert.alert(
+          TEXT.removeTitle[lang],
+          TEXT.removeMsg[lang].replace("{name}", member.name),
+          [
+            { text: TEXT.cancel[lang], style: "cancel" },
+            {
+              text: TEXT.remove[lang],
+              style: "destructive",
+              onPress: () =>
+                Alert.alert(
+                  TEXT.removed[lang],
+                  TEXT.removedMsg[lang].replace("{name}", member.name),
+                ),
+            },
+          ],
+        ),
+      onlyForOthers: true,
+    },
+  ];
+}
 
 export default function MemberGroup({ navigation }: any) {
+  const { darkMode } = useDarkMode();
+  const { lang } = useLanguage();
+  const theme = darkMode ? darkTheme : lightTheme;
+  const memberOptions = getMemberOptions(lang as "vi" | "en");
+
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [showOptions, setShowOptions] = useState(false);
 
@@ -116,9 +177,10 @@ export default function MemberGroup({ navigation }: any) {
 
   // Lấy danh sách chức năng phù hợp với từng loại thành viên
   const getOptionsForMember = (member: any) => {
-    const isOwner = member.role === "Chủ nhóm";
-    const isAdmin = member.role === "Quản trị viên";
-    const isMember = member.role === "Thành viên";
+    const role = member?.role || "";
+    const isOwner = role === "owner";
+    const isAdmin = role === "admin";
+    const isMember = role === "member";
     return memberOptions.filter((opt) => {
       if (opt.onlyForOthers && isOwner) return false;
       if (opt.onlyForMember && !isMember) return false;
@@ -127,40 +189,69 @@ export default function MemberGroup({ navigation }: any) {
     });
   };
 
+  // Đổi key thành text đa ngữ
+  const getRoleLabel = (role: string) => {
+    if (role === "owner") return TEXT.owner[lang as "vi" | "en"];
+    if (role === "admin") return TEXT.admin[lang as "vi" | "en"];
+    return TEXT.member[lang as "vi" | "en"];
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       {/* Header */}
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: theme.section, borderBottomColor: theme.card },
+        ]}
+      >
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => navigation?.goBack?.()}
         >
-          <Ionicons name="chevron-back" size={scale(26)} color="#4F8CFF" />
+          <Ionicons
+            name="chevron-back"
+            size={scale(26)}
+            color={theme.primary}
+          />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thành viên nhóm</Text>
+        <Text style={[styles.headerTitle, { color: theme.primary }]}>
+          {TEXT.groupMembers[lang as "vi" | "en"]}
+        </Text>
         <View style={{ width: scale(26) }} />
       </View>
       {/* Danh sách thành viên */}
       <FlatList
-        data={members}
+        data={DUMMY_MEMBERS}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: scale(16) }}
         renderItem={({ item }) => (
-          <View style={styles.memberCard}>
+          <View
+            style={[
+              styles.memberCard,
+              { backgroundColor: theme.card, shadowColor: theme.primary },
+            ]}
+          >
             <Image source={item.avatar} style={styles.avatar} />
             <View style={{ marginLeft: scale(14), flex: 1 }}>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.role}>{item.role}</Text>
+              <Text style={[styles.name, { color: theme.text }]}>
+                {item.name}
+              </Text>
+              <Text style={[styles.role, { color: theme.primary }]}>
+                {getRoleLabel(item.role)}
+              </Text>
             </View>
             {/* Nút tuỳ chọn */}
             <TouchableOpacity
-              style={styles.optionBtn}
+              style={[styles.optionBtn, { backgroundColor: theme.background }]}
               onPress={() => handleOpenOptions(item)}
             >
               <Ionicons
                 name="ellipsis-vertical"
                 size={scale(20)}
-                color="#666"
+                color={theme.subText}
               />
             </TouchableOpacity>
           </View>
@@ -168,7 +259,9 @@ export default function MemberGroup({ navigation }: any) {
         ItemSeparatorComponent={() => <View style={{ height: scale(10) }} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Chưa có thành viên nào.</Text>
+            <Text style={[styles.emptyText, { color: theme.subText }]}>
+              {TEXT.noMember[lang as "vi" | "en"]}
+            </Text>
           </View>
         }
       />
@@ -181,9 +274,14 @@ export default function MemberGroup({ navigation }: any) {
         onRequestClose={handleCloseOptions}
       >
         <Pressable style={styles.modalOverlay} onPress={handleCloseOptions}>
-          <View style={styles.optionsContainer}>
-            <Text style={styles.optionsTitle}>
-              {selectedMember?.name} - {selectedMember?.role}
+          <View
+            style={[
+              styles.optionsContainer,
+              { backgroundColor: theme.card, shadowColor: theme.primary },
+            ]}
+          >
+            <Text style={[styles.optionsTitle, { color: theme.primary }]}>
+              {selectedMember?.name} - {getRoleLabel(selectedMember?.role)}
             </Text>
             {getOptionsForMember(selectedMember || {}).map((opt) => (
               <TouchableOpacity
@@ -193,11 +291,8 @@ export default function MemberGroup({ navigation }: any) {
                 onPress={() => {
                   handleCloseOptions();
                   setTimeout(() => {
-                    if (opt.key === "view") {
-                      opt.onPress(selectedMember, navigation); // truyền navigation cho "view"
-                    } else {
-                      opt.onPress(selectedMember); // các trường hợp khác vẫn truyền 1 tham số
-                    }
+                    // Luôn truyền đủ 2 tham số: member, navigation
+                    opt.onPress(selectedMember, navigation);
                   }, 150);
                 }}
               >
@@ -225,16 +320,14 @@ export default function MemberGroup({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7F9FC" },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: scale(12),
     paddingTop: scale(6),
     paddingBottom: scale(8),
-    backgroundColor: "#fff",
     borderBottomWidth: 0.5,
-    borderBottomColor: "#E4EAF2",
   },
   backBtn: { width: scale(32), alignItems: "flex-start" },
   headerTitle: {
@@ -242,17 +335,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: scale(18),
     fontWeight: "bold",
-    color: "#2C4BFF",
     marginHorizontal: scale(2),
   },
   memberCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
     borderRadius: scale(14),
     padding: scale(12),
     elevation: 2,
-    shadowColor: "#2C4BFF",
     shadowOpacity: 0.07,
     shadowOffset: { width: 0, height: scale(4) },
     shadowRadius: scale(10),
@@ -261,22 +351,18 @@ const styles = StyleSheet.create({
     width: scale(44),
     height: scale(44),
     borderRadius: scale(12),
-    backgroundColor: "#E4EAF2",
   },
   name: {
     fontSize: scale(16),
     fontWeight: "bold",
-    color: "#222",
   },
   role: {
     fontSize: scale(13),
-    color: "#4F8CFF",
     marginTop: scale(2),
   },
   optionBtn: {
     padding: scale(8),
     borderRadius: scale(14),
-    backgroundColor: "#F0F3FA",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -285,7 +371,6 @@ const styles = StyleSheet.create({
     marginTop: scale(40),
   },
   emptyText: {
-    color: "#888",
     fontSize: scale(15),
     fontStyle: "italic",
   },
@@ -300,19 +385,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   optionsContainer: {
-    backgroundColor: "#fff",
     borderRadius: scale(20),
     padding: scale(18),
     width: scale(290),
     elevation: 5,
-    shadowColor: "#2C4BFF",
     shadowOpacity: 0.13,
     shadowOffset: { width: 0, height: scale(6) },
     shadowRadius: scale(20),
   },
   optionsTitle: {
     fontWeight: "bold",
-    color: "#2C4BFF",
     fontSize: scale(16),
     marginBottom: scale(12),
     textAlign: "center",
@@ -327,7 +409,6 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     fontSize: scale(15),
-    color: "#222",
     fontWeight: "500",
   },
 });

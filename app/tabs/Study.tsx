@@ -14,17 +14,19 @@ import {
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import * as Speech from "expo-speech";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useDarkMode } from "../../app/DarkModeContext";
+import { useLanguage } from "../../app/LanguageContext";
+import { lightTheme, darkTheme } from "../../app/theme";
 
 // Responsive helpers
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
-const MAIN_BG_COLOR = "#fffff9";
 const fallbackImage = require("../../assets/images/avatar.png");
 const PIXABAY_API_KEY = "32527145-1448acf0aed3630c8387734cf";
 const CACHE_KEY = "flashcard_image_cache_v1";
 
-const CARD_COLORS = [
+const CARD_COLORS_LIGHT = [
   "#eaf1fa",
   "#F3E9E1",
   "#FEF9E7",
@@ -36,6 +38,39 @@ const CARD_COLORS = [
   "#F8C471",
   "#E8F1FF",
 ];
+const CARD_COLORS_DARK = [
+  "#283043",
+  "#3b3a3a",
+  "#4c4541",
+  "#2d4338",
+  "#494d2d",
+  "#4c4739",
+  "#394252",
+  "#472d3d",
+  "#49422d",
+  "#2e3e4c",
+];
+
+const TEXT = {
+  title: { vi: "Học Flashcard", en: "Study Flashcards" },
+  card: { vi: "thẻ", en: "cards" },
+  known: { vi: "ĐÃ BIẾT", en: "KNOWN" },
+  unknown: { vi: "CHƯA BIẾT", en: "UNKNOWN" },
+  congratulations: { vi: "Chúc mừng!", en: "Congratulations!" },
+  finished: {
+    vi: "Bạn đã học xong tất cả",
+    en: "You finished all",
+  },
+  star: { vi: "⭐ Đánh dấu:", en: "⭐ Starred:" },
+  noCard: {
+    vi: "Không có flashcard nào để học.",
+    en: "No flashcards to study.",
+  },
+  back: { vi: "Quay lại thẻ trước", en: "Previous card" },
+  progress: { vi: "Thẻ", en: "Card" },
+  knownCount: { vi: "Đã biết", en: "Known" },
+  unknownCount: { vi: "Chưa biết", en: "Unknown" },
+};
 
 type Flashcard = {
   front: string;
@@ -118,7 +153,6 @@ const flashcards: Flashcard[] = [
   },
 ];
 
-// Responsive card size
 const CARD_WIDTH = SCREEN_WIDTH * 0.83;
 const CARD_HEIGHT = scale(360);
 const SWIPE_THRESHOLD = CARD_WIDTH * 0.27;
@@ -138,23 +172,21 @@ export default function Study() {
     null | "known" | "unknown"
   >(null);
 
-  // Để đảm bảo overlay feedback không bị nháy ở thẻ tiếp theo:
   const [pendingClearFeedback, setPendingClearFeedback] = useState(false);
-
-  // Lưu giá trị swipeX an toàn bằng state
   const [swipeX, setSwipeX] = useState(0);
-
-  // Hiệu ứng bật lên khi thẻ mới vào
   const [isCardEntering, setIsCardEntering] = useState(true);
   const popAnim = useRef(new Animated.Value(1)).current;
-
-  // Flip animation
   const flipAnim = useRef(new Animated.Value(0)).current;
-  // Swipe animation
   const swipeAnim = useRef(new Animated.ValueXY()).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
-  // History stack (for "previous card" feature)
   const [historyStack, setHistoryStack] = useState<number[]>([]);
+  const [showCard, setShowCard] = useState(true);
+
+  const { darkMode } = useDarkMode();
+  const { lang } = useLanguage();
+  const theme = darkMode ? darkTheme : lightTheme;
+  const CARD_COLORS = darkMode ? CARD_COLORS_DARK : CARD_COLORS_LIGHT;
+  const MAIN_BG_COLOR = theme.background;
 
   const totalCards = flashcards.length;
   const isDone = current >= totalCards;
@@ -172,7 +204,6 @@ export default function Study() {
     outputRange: ["180deg", "360deg"],
   });
 
-  // Khi chuyển thẻ, reset feedback và set isCardEntering true (pop effect chỉ chạy ở effect bên dưới)
   useEffect(() => {
     setFlipped(false);
     setSwipeFeedback(null);
@@ -184,7 +215,6 @@ export default function Study() {
     setIsCardEntering(true);
   }, [current]);
 
-  // Hiệu ứng pop chỉ chạy khi thẻ mới xuất hiện (sau khi swipeAnim đã về 0)
   useEffect(() => {
     if (!isCardEntering) return;
     popAnim.setValue(0.75);
@@ -196,7 +226,6 @@ export default function Study() {
     }).start(() => setIsCardEntering(false));
   }, [isCardEntering, popAnim]);
 
-  // Cập nhật swipeX liên tục an toàn
   useEffect(() => {
     const id = swipeAnim.x.addListener(({ value }) => setSwipeX(value));
     return () => swipeAnim.x.removeListener(id);
@@ -264,7 +293,7 @@ export default function Study() {
     }
   };
 
-  // Swipe logic - fix overlay nháy ở thẻ tiếp theo
+  // Swipe logic - fix nháy thẻ cũ khi chuyển thẻ mới
   const animateOutAndNext = (direction: "known" | "unknown") => {
     setFeedback(direction);
     setPendingClearFeedback(true);
@@ -283,22 +312,25 @@ export default function Study() {
         useNativeDriver: true,
       }),
     ]).start(() => {
+      setShowCard(false);
       setTimeout(() => {
-        setSwipeFeedback(null);
         opacityAnim.setValue(1);
         swipeAnim.setValue({ x: 0, y: 0 });
         setFlipped(false);
         flipAnim.setValue(0);
+        setFeedback(null);
+        setSwipeFeedback(null);
+
         if (direction === "known") setKnown((arr) => [...arr, current]);
         else setUnknown((arr) => [...arr, current]);
         setHistoryStack((stack) => [...stack, current]);
         setCurrent((prev) => prev + 1);
-        setIsCardEntering(true); // Chỉ chạy hiệu ứng pop khi thẻ mới vào!
-      }, 120);
+        setShowCard(true);
+        setIsCardEntering(true);
+      }, 0);
     });
   };
 
-  // Theo dõi swipeAnim.x và current, clear feedback khi về giữa
   useEffect(() => {
     if (!pendingClearFeedback) return;
     const id = swipeAnim.x.addListener(({ value }) => {
@@ -344,7 +376,6 @@ export default function Study() {
     }),
   ).current;
 
-  // Go back to the previous card (step-back, not first)
   const goBack = () => {
     if (historyStack.length === 0) return;
     const lastIndex = historyStack.length - 1;
@@ -361,7 +392,6 @@ export default function Study() {
     setIsCardEntering(true);
   };
 
-  // TS safe get imageUrl
   let imageUrl: { uri: string } | number = fallbackImage;
   if (card && card.front) {
     const word = card.front.trim().toLowerCase();
@@ -384,7 +414,7 @@ export default function Study() {
         ]}
       >
         <Text style={styles.overlayText}>
-          {feedback === "known" ? "ĐÃ BIẾT" : "CHƯA BIẾT"}
+          {feedback === "known" ? TEXT.known[lang] : TEXT.unknown[lang]}
         </Text>
       </Animated.View>
     ) : null;
@@ -402,7 +432,7 @@ export default function Study() {
         ]}
       >
         <Text style={styles.overlayText}>
-          {swipeFeedback === "known" ? "ĐÃ BIẾT" : "CHƯA BIẾT"}
+          {swipeFeedback === "known" ? TEXT.known[lang] : TEXT.unknown[lang]}
         </Text>
       </Animated.View>
     ) : null;
@@ -410,12 +440,17 @@ export default function Study() {
   if (isDone) {
     return (
       <View style={[styles.bg, { backgroundColor: MAIN_BG_COLOR }]}>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
         <View style={styles.container}>
           <View
             style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
           >
-            <View style={styles.doneCardWrap}>
+            <View
+              style={[
+                styles.doneCardWrap,
+                { backgroundColor: theme.card, shadowColor: theme.text },
+              ]}
+            >
               <Ionicons
                 name="checkmark-circle"
                 size={scale(80)}
@@ -430,17 +465,17 @@ export default function Study() {
                   marginBottom: scale(6),
                 }}
               >
-                Chúc mừng!
+                {TEXT.congratulations[lang]}
               </Text>
               <Text
                 style={{
                   fontSize: scale(20),
-                  color: "#222",
+                  color: theme.text,
                   fontWeight: "600",
                   marginBottom: scale(24),
                 }}
               >
-                Bạn đã học xong tất cả {totalCards} thẻ
+                {TEXT.finished[lang]} {totalCards} {TEXT.card[lang]}
               </Text>
               <View
                 style={{
@@ -457,7 +492,7 @@ export default function Study() {
                     fontWeight: "bold",
                   }}
                 >
-                  Đã biết: {known.length}
+                  {TEXT.knownCount[lang]}: {known.length}
                 </Text>
                 <Text
                   style={{
@@ -466,7 +501,7 @@ export default function Study() {
                     fontWeight: "bold",
                   }}
                 >
-                  Chưa biết: {unknown.length}
+                  {TEXT.unknownCount[lang]}: {unknown.length}
                 </Text>
               </View>
               {starred.length > 0 && (
@@ -479,7 +514,7 @@ export default function Study() {
                     marginBottom: scale(10),
                   }}
                 >
-                  ⭐ Đánh dấu:{" "}
+                  {TEXT.star[lang]}{" "}
                   {starred.map((i) => flashcards[i].front).join(", ")}
                 </Text>
               )}
@@ -493,7 +528,7 @@ export default function Study() {
               disabled={historyStack.length === 0}
             >
               <Ionicons name="chevron-back" size={scale(26)} color="#fff" />
-              <Text style={styles.btnLabel}>Quay lại thẻ trước</Text>
+              <Text style={styles.btnLabel}>{TEXT.back[lang]}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -504,27 +539,32 @@ export default function Study() {
   if (flashcards.length === 0) {
     return (
       <View style={styles.center}>
-        <Text>Không có flashcard nào để học.</Text>
+        <Text>{TEXT.noCard[lang]}</Text>
       </View>
     );
   }
 
   return (
     <View style={[styles.bg, { backgroundColor: MAIN_BG_COLOR }]}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
       <View style={styles.container}>
-        <Text style={styles.title}>Học Flashcard ({totalCards} thẻ)</Text>
-        {/* Thanh tiến trình */}
+        {/* Giữ title/progress bar ở vị trí cố định */}
+        <Text style={[styles.title, { color: theme.primary }]}>
+          {TEXT.title[lang]} ({totalCards} {TEXT.card[lang]})
+        </Text>
         <View style={styles.progressBox}>
-          <Text style={styles.progressText}>
-            Thẻ {current + 1}/{totalCards}
+          <Text style={[styles.progressText, { color: theme.primary }]}>
+            {TEXT.progress[lang]} {current + 1}/{totalCards}
           </Text>
-          <View style={styles.progressBarBg}>
+          <View
+            style={[styles.progressBarBg, { backgroundColor: theme.section }]}
+          >
             <View
               style={[
                 styles.progressBarFill,
                 {
                   width: `${((current + 1) / totalCards) * 100}%`,
+                  backgroundColor: theme.primary,
                 },
               ]}
             />
@@ -532,189 +572,207 @@ export default function Study() {
         </View>
         {/* Card swipe + flip + feedback overlay */}
         <View style={{ alignItems: "center", marginBottom: scale(32) }}>
-          <Animated.View
-            {...(!isDone ? panResponder.panHandlers : {})}
-            style={[
-              styles.cardCommon,
-              {
-                opacity: opacityAnim,
-                transform: [
-                  { scale: popAnim }, // hiệu ứng bật lên
-                  { translateX: swipeAnim.x },
-                  { translateY: swipeAnim.y },
-                  {
-                    scale: swipeAnim.x.interpolate({
-                      inputRange: [-CARD_WIDTH, 0, CARD_WIDTH],
-                      outputRange: [0.95, 1, 0.95],
-                      extrapolate: "clamp",
-                    }),
-                  },
-                  {
-                    rotate: swipeAnim.x.interpolate({
-                      inputRange: [-CARD_WIDTH, 0, CARD_WIDTH],
-                      outputRange: ["-14deg", "0deg", "14deg"],
-                      extrapolate: "clamp",
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            {/* Mặt trước */}
+          {showCard ? (
             <Animated.View
+              {...(!isDone ? panResponder.panHandlers : {})}
               style={[
-                styles.cardFace,
+                styles.cardCommon,
                 {
-                  transform: [{ rotateY: frontInterpolate }],
-                  zIndex: !flipped ? 2 : 0,
+                  opacity: opacityAnim,
+                  transform: [
+                    { scale: popAnim },
+                    { translateX: swipeAnim.x },
+                    { translateY: swipeAnim.y },
+                    {
+                      scale: swipeAnim.x.interpolate({
+                        inputRange: [-CARD_WIDTH, 0, CARD_WIDTH],
+                        outputRange: [0.95, 1, 0.95],
+                        extrapolate: "clamp",
+                      }),
+                    },
+                    {
+                      rotate: swipeAnim.x.interpolate({
+                        inputRange: [-CARD_WIDTH, 0, CARD_WIDTH],
+                        outputRange: ["-14deg", "0deg", "14deg"],
+                        extrapolate: "clamp",
+                      }),
+                    },
+                  ],
                 },
               ]}
-              pointerEvents={!flipped ? "auto" : "none"}
             >
-              {/* Nền thẻ lật cùng nội dung */}
-              <View
+              {/* Mặt trước */}
+              <Animated.View
                 style={[
-                  StyleSheet.absoluteFillObject,
-                  { backgroundColor: cardBgColor, borderRadius: scale(24) },
+                  styles.cardFace,
+                  {
+                    transform: [{ rotateY: frontInterpolate }],
+                    zIndex: !flipped ? 2 : 0,
+                  },
                 ]}
-              />
-              <TouchableOpacity
-                activeOpacity={0.96}
-                onPress={flipCard}
-                style={{ flex: 1, zIndex: 3, width: "100%" }}
-                disabled={swiping || isDone}
+                pointerEvents={!flipped ? "auto" : "none"}
               >
-                <TouchableOpacity
-                  style={styles.starTopLeft}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    setStarred((prev) =>
-                      prev.includes(current)
-                        ? prev.filter((i) => i !== current)
-                        : [...prev, current],
-                    );
-                  }}
-                >
-                  <FontAwesome
-                    name={starred.includes(current) ? "star" : "star-o"}
-                    size={scale(26)}
-                    color={starred.includes(current) ? "#FFD600" : "#bfc8d6"}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.speakerTopRight}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    if (card && card.front)
-                      Speech.speak(card.front, { language: "en" });
-                  }}
-                >
-                  <Ionicons
-                    name="volume-high"
-                    size={scale(26)}
-                    color="#3B5EFF"
-                  />
-                </TouchableOpacity>
+                {/* Nền thẻ lật cùng nội dung */}
                 <View
-                  style={{
-                    flex: 1,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+                  style={[
+                    StyleSheet.absoluteFillObject,
+                    { backgroundColor: cardBgColor, borderRadius: scale(24) },
+                  ]}
+                />
+                <TouchableOpacity
+                  activeOpacity={0.96}
+                  onPress={flipCard}
+                  style={{ flex: 1, zIndex: 3, width: "100%" }}
+                  disabled={swiping || isDone}
                 >
-                  <Text style={styles.cardFrontVocab}>{card?.front ?? ""}</Text>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginTop: scale(6),
+                  <TouchableOpacity
+                    style={styles.starTopLeft}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      setStarred((prev) =>
+                        prev.includes(current)
+                          ? prev.filter((i) => i !== current)
+                          : [...prev, current],
+                      );
                     }}
                   >
-                    {card && card.partOfSpeech && (
-                      <Text style={styles.cardFrontPOS}>
-                        {card.partOfSpeech}
-                      </Text>
+                    <FontAwesome
+                      name={starred.includes(current) ? "star" : "star-o"}
+                      size={scale(26)}
+                      color={starred.includes(current) ? "#FFD600" : "#bfc8d6"}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.speakerTopRight}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      if (card && card.front)
+                        Speech.speak(card.front, { language: "en" });
+                    }}
+                  >
+                    <Ionicons
+                      name="volume-high"
+                      size={scale(26)}
+                      color={theme.primary}
+                    />
+                  </TouchableOpacity>
+                  <View
+                    style={{
+                      flex: 1,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text
+                      style={[styles.cardFrontVocab, { color: theme.primary }]}
+                    >
+                      {card?.front ?? ""}
+                    </Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginTop: scale(6),
+                      }}
+                    >
+                      {card && card.partOfSpeech && (
+                        <Text
+                          style={[styles.cardFrontPOS, { color: theme.text }]}
+                        >
+                          {card.partOfSpeech}
+                        </Text>
+                      )}
+                      {card && card.phonetic && (
+                        <Text style={styles.cardFrontPhonetic}>
+                          {"  "}
+                          {card.phonetic}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+              {/* Mặt sau */}
+              <Animated.View
+                style={[
+                  styles.cardFace,
+                  {
+                    transform: [{ rotateY: backInterpolate }],
+                    zIndex: flipped ? 2 : 0,
+                  },
+                ]}
+                pointerEvents={flipped ? "auto" : "none"}
+              >
+                {/* Nền thẻ lật cùng nội dung */}
+                <View
+                  style={[
+                    StyleSheet.absoluteFillObject,
+                    { backgroundColor: cardBgColor, borderRadius: scale(24) },
+                  ]}
+                />
+                <TouchableOpacity
+                  activeOpacity={0.96}
+                  onPress={flipCard}
+                  style={{ flex: 1, zIndex: 3, width: "100%" }}
+                  disabled={swiping || isDone}
+                >
+                  <TouchableOpacity
+                    style={styles.speakerTopRight}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      if (card && card.example)
+                        Speech.speak(card.example, { language: "en" });
+                    }}
+                  >
+                    <Ionicons
+                      name="volume-high"
+                      size={scale(26)}
+                      color={theme.primary}
+                    />
+                  </TouchableOpacity>
+                  <View
+                    style={{
+                      flex: 1,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {loadingImage ? (
+                      <View
+                        style={{
+                          width: scale(140),
+                          height: scale(140),
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <ActivityIndicator size="large" color={theme.primary} />
+                      </View>
+                    ) : (
+                      <Image source={imageUrl} style={styles.cardImage} />
                     )}
-                    {card && card.phonetic && (
-                      <Text style={styles.cardFrontPhonetic}>
-                        {"  "}
-                        {card.phonetic}
+                    <Text
+                      style={[styles.cardBackMeaning, { color: theme.primary }]}
+                    >
+                      {card?.back ?? ""}
+                    </Text>
+                    {card && card.example && (
+                      <Text
+                        style={[styles.cardBackExample, { color: theme.text }]}
+                      >
+                        {card.example}
                       </Text>
                     )}
                   </View>
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-            {/* Mặt sau */}
-            <Animated.View
-              style={[
-                styles.cardFace,
-                {
-                  transform: [{ rotateY: backInterpolate }],
-                  zIndex: flipped ? 2 : 0,
-                },
-              ]}
-              pointerEvents={flipped ? "auto" : "none"}
-            >
-              {/* Nền thẻ lật cùng nội dung */}
-              <View
-                style={[
-                  StyleSheet.absoluteFillObject,
-                  { backgroundColor: cardBgColor, borderRadius: scale(24) },
-                ]}
-              />
-              <TouchableOpacity
-                activeOpacity={0.96}
-                onPress={flipCard}
-                style={{ flex: 1, zIndex: 3, width: "100%" }}
-                disabled={swiping || isDone}
-              >
-                {/* Speaker example button top-right */}
-                <TouchableOpacity
-                  style={styles.speakerTopRight}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    if (card && card.example)
-                      Speech.speak(card.example, { language: "en" });
-                  }}
-                >
-                  <Ionicons
-                    name="volume-high"
-                    size={scale(26)}
-                    color="#3B5EFF"
-                  />
                 </TouchableOpacity>
-                <View
-                  style={{
-                    flex: 1,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {loadingImage ? (
-                    <View
-                      style={{
-                        width: scale(140),
-                        height: scale(140),
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
-                    >
-                      <ActivityIndicator size="large" color="#3B5EFF" />
-                    </View>
-                  ) : (
-                    <Image source={imageUrl} style={styles.cardImage} />
-                  )}
-                  <Text style={styles.cardBackMeaning}>{card?.back ?? ""}</Text>
-                  {card && card.example && (
-                    <Text style={styles.cardBackExample}>{card.example}</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
+              </Animated.View>
+              {swipeOverlay}
+              {feedbackOverlay}
             </Animated.View>
-            {swipeOverlay}
-            {feedbackOverlay}
-          </Animated.View>
+          ) : (
+            // Placeholder giữ đúng vị trí/kích thước của card
+            <View style={{ height: CARD_HEIGHT, width: CARD_WIDTH }} />
+          )}
         </View>
       </View>
     </View>
@@ -733,7 +791,6 @@ const styles = StyleSheet.create({
     fontSize: scale(28),
     fontWeight: "bold",
     marginBottom: scale(18),
-    color: "#2C4BFF",
   },
   cardCommon: {
     width: CARD_WIDTH,
@@ -773,13 +830,11 @@ const styles = StyleSheet.create({
   cardFrontVocab: {
     fontSize: scale(30),
     fontWeight: "bold",
-    color: "#2C4BFF",
     textAlign: "center",
     marginBottom: scale(6),
   },
   cardFrontPOS: {
     fontSize: scale(19),
-    color: "#444",
     fontWeight: "bold",
     marginRight: scale(8),
   },
@@ -790,7 +845,6 @@ const styles = StyleSheet.create({
   },
   cardBackMeaning: {
     fontSize: scale(26),
-    color: "#2C4BFF",
     fontWeight: "bold",
     marginTop: scale(8),
     marginBottom: scale(12),
@@ -798,7 +852,6 @@ const styles = StyleSheet.create({
   },
   cardBackExample: {
     fontSize: scale(16),
-    color: "#333",
     fontStyle: "italic",
     textAlign: "center",
     marginBottom: scale(8),
@@ -878,11 +931,9 @@ const styles = StyleSheet.create({
   doneCardWrap: {
     width: CARD_WIDTH,
     minHeight: CARD_HEIGHT * 0.83,
-    backgroundColor: "#fff",
     borderRadius: scale(28),
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#222",
     shadowOpacity: 0.09,
     shadowRadius: scale(12),
     elevation: 3,
@@ -899,20 +950,17 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: scale(15),
-    color: "#3B5EFF",
     fontWeight: "600",
     marginBottom: scale(5),
   },
   progressBarBg: {
     height: scale(7),
     width: SCREEN_WIDTH * 0.6,
-    backgroundColor: "#eee",
     borderRadius: scale(10),
     overflow: "hidden",
   },
   progressBarFill: {
     height: scale(7),
-    backgroundColor: "#3B5EFF",
     borderRadius: scale(10),
   },
   starredWords: {

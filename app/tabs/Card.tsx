@@ -20,8 +20,52 @@ import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../../AppNavigator";
+import { useDarkMode } from "../DarkModeContext";
+import { lightTheme, darkTheme } from "../theme";
+import { useLanguage } from "../LanguageContext"; // Thêm vào để hỗ trợ đa ngữ
 
-// Responsive helpers
+// ====== MULTILINGUAL TEXT KEYS ======
+const TEXT = {
+  your_card_sets: { vi: "Bộ Thẻ Của Bạn", en: "Your Card Sets" },
+  search_placeholder: { vi: "Tìm bộ thẻ", en: "Search card sets" },
+  sort: { vi: "Sắp xếp", en: "Sort" },
+  all: { vi: "Tất cả", en: "All" },
+  mine: { vi: "Của tôi", en: "Mine" },
+  saved: { vi: "Đã lưu", en: "Saved" },
+  loading: { vi: "Đang tải dữ liệu...", en: "Loading..." },
+  no_card_set: { vi: "Không tìm thấy bộ thẻ nào", en: "No card sets found" },
+  create_card_set: { vi: "Tạo bộ thẻ mới", en: "Create New Card Set" },
+  create: { vi: "Tạo", en: "Create" },
+  cancel: { vi: "Huỷ", en: "Cancel" },
+  edit_card_set: { vi: "Sửa bộ thẻ", en: "Edit Card Set" },
+  save: { vi: "Lưu", en: "Save" },
+  delete: { vi: "Xoá", en: "Delete" },
+  delete_card_set: { vi: "Xoá bộ thẻ", en: "Delete Card Set" },
+  delete_card_set_confirm: {
+    vi: "Bạn chắc chắn muốn xoá bộ thẻ này?",
+    en: "Are you sure you want to delete this card set?",
+  },
+  card_set_name: { vi: "Tên bộ thẻ", en: "Card Set Name" },
+  card_set_desc: { vi: "Mô tả", en: "Description" },
+  category: { vi: "Danh mục", en: "Category" },
+  filter: { vi: "Bộ lọc", en: "Filter" },
+  categories: { vi: "Danh mục", en: "Categories" },
+  clear_filter: { vi: "Xóa lọc", en: "Clear filter" },
+  apply: { vi: "Áp dụng", en: "Apply" },
+  title_az: { vi: "Tên A-Z", en: "Title A-Z" },
+  newest: { vi: "Mới nhất", en: "Newest" },
+  most_cards: { vi: "Nhiều thẻ nhất", en: "Most cards" },
+  info_missing: { vi: "Thiếu thông tin", en: "Missing information" },
+  card_set_name_required: {
+    vi: "Tên bộ thẻ không được để trống",
+    en: "Card set name cannot be blank",
+  },
+  tab_all: { vi: "Tất cả", en: "All" },
+  tab_mine: { vi: "Của tôi", en: "Mine" },
+  tab_saved: { vi: "Đã lưu", en: "Saved" },
+  cards: { vi: "thẻ", en: "cards" },
+};
+
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
@@ -88,7 +132,6 @@ const initialCardSets = [
   },
 ];
 
-const TABS = ["Tất cả", "Của tôi", "Đã lưu"];
 const filterCategories = [
   "Ngôn ngữ",
   "Mỹ thuật",
@@ -96,15 +139,22 @@ const filterCategories = [
   "Âm nhạc",
   "Toán học",
 ];
-const sortModes = [
-  { label: "Tên A-Z", value: "titleAsc" },
-  { label: "Mới nhất", value: "latest" },
-  { label: "Nhiều thẻ nhất", value: "mostCards" },
-];
 
 export default function Card() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const [selectedTab, setSelectedTab] = useState("Tất cả");
+  const { darkMode } = useDarkMode();
+  const theme = darkMode ? darkTheme : lightTheme;
+  const { lang } = useLanguage();
+
+  // Cập nhật theo ngôn ngữ động
+  const TABS = [TEXT.tab_all[lang], TEXT.tab_mine[lang], TEXT.tab_saved[lang]];
+  const sortModes = [
+    { label: TEXT.title_az[lang], value: "titleAsc" },
+    { label: TEXT.newest[lang], value: "latest" },
+    { label: TEXT.most_cards[lang], value: "mostCards" },
+  ];
+
+  const [selectedTab, setSelectedTab] = useState(TABS[0]);
   const [filterVisible, setFilterVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [editModal, setEditModal] = useState({ visible: false, cardSetId: "" });
@@ -180,10 +230,10 @@ export default function Card() {
   // Lọc bộ thẻ dựa trên tab và tìm kiếm
   const filterCardSets = () => {
     let result = [...cardSets];
-    if (selectedTab === "Của tôi") {
+    if (selectedTab === TEXT.tab_mine[lang]) {
       result = result.filter((set) => set.author === "Huy Nguyen");
     }
-    if (selectedTab === "Đã lưu") {
+    if (selectedTab === TEXT.tab_saved[lang]) {
       result = result.filter((set) => set.isSaved);
     }
     if (selectedCategories.length > 0) {
@@ -232,7 +282,7 @@ export default function Card() {
   // Thêm bộ thẻ mới
   const handleAddCardSet = () => {
     if (!newCardSet.title.trim()) {
-      Alert.alert("Thiếu thông tin", "Tên bộ thẻ không được để trống");
+      Alert.alert(TEXT.info_missing[lang], TEXT.card_set_name_required[lang]);
       return;
     }
     setCardSets((prev) => [
@@ -260,17 +310,21 @@ export default function Card() {
   // Xoá bộ thẻ
   const handleDeleteCardSet = (id: string) => {
     setDeletingId(id);
-    Alert.alert("Xoá bộ thẻ", "Bạn chắc chắn muốn xoá bộ thẻ này?", [
-      { text: "Huỷ", onPress: () => setDeletingId(null) },
-      {
-        text: "Xoá",
-        style: "destructive",
-        onPress: () => {
-          setCardSets((prev) => prev.filter((c) => c.id !== id));
-          setDeletingId(null);
+    Alert.alert(
+      TEXT.delete_card_set[lang],
+      TEXT.delete_card_set_confirm[lang],
+      [
+        { text: TEXT.cancel[lang], onPress: () => setDeletingId(null) },
+        {
+          text: TEXT.delete[lang],
+          style: "destructive",
+          onPress: () => {
+            setCardSets((prev) => prev.filter((c) => c.id !== id));
+            setDeletingId(null);
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   // Lưu/bỏ lưu bộ thẻ
@@ -306,11 +360,20 @@ export default function Card() {
     setEditModal({ visible: false, cardSetId: "" });
   };
 
+  // Khi đổi ngôn ngữ thì reset tab về tab đầu tiên (tránh lỗi không khớp)
+  useEffect(() => {
+    setSelectedTab(TABS[0]);
+  }, [lang]);
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       {/* Header */}
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Bộ Thẻ Của Bạn</Text>
+        <Text style={[styles.title, { color: theme.text }]}>
+          {TEXT.your_card_sets[lang]}
+        </Text>
         <TouchableOpacity>
           <Image
             source={require("../../assets/images/avatar.png")}
@@ -320,17 +383,17 @@ export default function Card() {
       </View>
 
       {/* Search bar + sort */}
-      <View style={styles.searchRow}>
+      <View style={[styles.searchRow, { backgroundColor: theme.card }]}>
         <Ionicons
           name="search"
           size={scale(18)}
-          color="#BFC8D6"
+          color={theme.subText}
           style={{ marginLeft: scale(8) }}
         />
         <TextInput
-          style={styles.searchInput}
-          placeholder="Tìm bộ thẻ"
-          placeholderTextColor="#BFC8D6"
+          style={[styles.searchInput, { color: theme.text }]}
+          placeholder={TEXT.search_placeholder[lang]}
+          placeholderTextColor={theme.subText}
           value={searchText}
           onChangeText={setSearchText}
         />
@@ -338,7 +401,7 @@ export default function Card() {
           style={styles.filterBtn}
           onPress={() => setFilterVisible(true)}
         >
-          <Ionicons name="options" size={scale(20)} color="#BFC8D6" />
+          <Ionicons name="options" size={scale(20)} color={theme.subText} />
         </TouchableOpacity>
         {/* Sort */}
         <TouchableOpacity
@@ -348,15 +411,20 @@ export default function Card() {
             setSortMode(sortModes[(idx + 1) % sortModes.length].value);
           }}
         >
-          <Ionicons name="swap-vertical" size={scale(21)} color="#BFC8D6" />
+          <Ionicons
+            name="swap-vertical"
+            size={scale(21)}
+            color={theme.subText}
+          />
           <Text
             style={{
-              color: "#BFC8D6",
+              color: theme.subText,
               fontSize: scale(13),
               marginLeft: scale(2),
             }}
           >
-            {sortModes.find((m) => m.value === sortMode)?.label || "Sắp xếp"}
+            {sortModes.find((m) => m.value === sortMode)?.label ||
+              TEXT.sort[lang]}
           </Text>
         </TouchableOpacity>
       </View>
@@ -375,7 +443,12 @@ export default function Card() {
         style={{ marginBottom: scale(8) }}
         renderItem={({ item: cat }) => (
           <TouchableOpacity
-            style={[styles.categoryCard, { backgroundColor: cat.color }]}
+            style={[
+              styles.categoryCard,
+              {
+                backgroundColor: darkMode ? theme.section : cat.color,
+              },
+            ]}
             activeOpacity={0.8}
           >
             {cat.image && (
@@ -385,7 +458,9 @@ export default function Card() {
                 resizeMode="contain"
               />
             )}
-            <Text style={styles.categoryTitle}>{cat.title}</Text>
+            <Text style={[styles.categoryTitle, { color: theme.primary }]}>
+              {cat.title}
+            </Text>
           </TouchableOpacity>
         )}
       />
@@ -395,12 +470,18 @@ export default function Card() {
         {TABS.map((tab) => (
           <TouchableOpacity
             key={tab}
-            style={selectedTab === tab ? styles.tabActive : styles.tab}
+            style={
+              selectedTab === tab
+                ? [styles.tabActive, { backgroundColor: theme.primary }]
+                : styles.tab
+            }
             onPress={() => setSelectedTab(tab)}
           >
             <Text
               style={
-                selectedTab === tab ? styles.tabActiveText : styles.tabText
+                selectedTab === tab
+                  ? [styles.tabActiveText, { color: "#fff" }]
+                  : [styles.tabText, { color: theme.subText }]
               }
             >
               {tab}
@@ -415,9 +496,9 @@ export default function Card() {
           <View
             style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
           >
-            <ActivityIndicator size="large" color="#2C4BFF" />
-            <Text style={{ color: "#aaa", marginTop: scale(10) }}>
-              Đang tải dữ liệu...
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={{ color: theme.subText, marginTop: scale(10) }}>
+              {TEXT.loading[lang]}
             </Text>
           </View>
         ) : (
@@ -435,11 +516,22 @@ export default function Card() {
             renderItem={({ item }) => (
               <View style={styles.cardItemBox}>
                 <TouchableOpacity
-                  style={styles.cardItem}
+                  style={[
+                    styles.cardItem,
+                    {
+                      backgroundColor: theme.card,
+                      shadowColor: theme.subText,
+                    },
+                  ]}
                   onPress={() => navigation.navigate("CardDetail")}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.cardImageBox}>
+                  <View
+                    style={[
+                      styles.cardImageBox,
+                      { backgroundColor: theme.section },
+                    ]}
+                  >
                     <Image
                       source={item.image}
                       style={styles.cardImagePlaceholder}
@@ -447,7 +539,9 @@ export default function Card() {
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.cardTitle}>{item.title}</Text>
+                    <Text style={[styles.cardTitle, { color: theme.text }]}>
+                      {item.title}
+                    </Text>
                     <View
                       style={{
                         flexDirection: "row",
@@ -458,9 +552,14 @@ export default function Card() {
                       <Ionicons
                         name="person"
                         size={scale(13)}
-                        color="#BFC8D6"
+                        color={theme.subText}
                       />
-                      <Text style={styles.cardAuthor}> {item.author}</Text>
+                      <Text
+                        style={[styles.cardAuthor, { color: theme.subText }]}
+                      >
+                        {" "}
+                        {item.author}
+                      </Text>
                     </View>
                     <View
                       style={{
@@ -472,11 +571,16 @@ export default function Card() {
                       <Ionicons
                         name="layers-outline"
                         size={scale(15)}
-                        color="#3B5EFF"
+                        color={theme.primary}
                       />
-                      <Text style={styles.cardTotalCards}>
+                      <Text
+                        style={[
+                          styles.cardTotalCards,
+                          { color: theme.primary },
+                        ]}
+                      >
                         {"  "}
-                        {item.totalCards} thẻ
+                        {item.totalCards} {TEXT.cards[lang]}
                       </Text>
                     </View>
                   </View>
@@ -487,14 +591,18 @@ export default function Card() {
                     <MaterialIcons
                       name={item.isSaved ? "bookmark" : "bookmark-border"}
                       size={scale(25)}
-                      color={item.isSaved ? "#FFD600" : "#BFC8D6"}
+                      color={item.isSaved ? "#FFD600" : theme.subText}
                     />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={{ marginLeft: scale(2), padding: scale(6) }}
                     onPress={() => openEditModal(item)}
                   >
-                    <Feather name="edit" size={scale(20)} color="#3B5EFF" />
+                    <Feather
+                      name="edit"
+                      size={scale(20)}
+                      color={theme.primary}
+                    />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={{ marginLeft: scale(2), padding: scale(6) }}
@@ -503,7 +611,11 @@ export default function Card() {
                     <Feather
                       name="trash-2"
                       size={scale(19)}
-                      color={deletingId === item.id ? "#e74c3c" : "#ccc"}
+                      color={
+                        deletingId === item.id
+                          ? theme.danger || "#e74c3c"
+                          : theme.subText
+                      }
                     />
                   </TouchableOpacity>
                 </TouchableOpacity>
@@ -526,16 +638,19 @@ export default function Card() {
                     marginBottom: scale(14),
                   }}
                 />
-                <Text style={{ color: "#BFC8D6", fontSize: scale(17) }}>
-                  Không tìm thấy bộ thẻ nào
+                <Text style={{ color: theme.subText, fontSize: scale(17) }}>
+                  {TEXT.no_card_set[lang]}
                 </Text>
                 <TouchableOpacity
-                  style={styles.emptyAddBtn}
+                  style={[
+                    styles.emptyAddBtn,
+                    { backgroundColor: theme.primary },
+                  ]}
                   onPress={() => setAddModalVisible(true)}
                 >
                   <Ionicons name="add" size={scale(22)} color="#fff" />
                   <Text style={{ color: "#fff", marginLeft: scale(5) }}>
-                    Tạo bộ thẻ mới
+                    {TEXT.create_card_set[lang]}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -546,7 +661,7 @@ export default function Card() {
 
       {/* Floating Action Button */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { backgroundColor: theme.primary }]}
         onPress={() => setAddModalVisible(true)}
       >
         <Ionicons name="add" size={scale(32)} color="#fff" />
@@ -555,24 +670,50 @@ export default function Card() {
       {/* Add CardSet Modal */}
       <Modal visible={addModalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Tạo bộ thẻ mới</Text>
+          <View
+            style={[styles.modalContent, { backgroundColor: theme.section }]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              {TEXT.create_card_set[lang]}
+            </Text>
             <TextInput
-              style={styles.input}
-              placeholder="Tên bộ thẻ"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.card_set_name[lang]}
+              placeholderTextColor={theme.subText}
               value={newCardSet.title}
               onChangeText={(t) => setNewCardSet((c) => ({ ...c, title: t }))}
             />
             <TextInput
-              style={styles.input}
-              placeholder="Mô tả"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.card_set_desc[lang]}
+              placeholderTextColor={theme.subText}
               value={newCardSet.description}
               onChangeText={(t) =>
                 setNewCardSet((c) => ({ ...c, description: t }))
               }
             />
-            <Text style={{ marginBottom: scale(7), marginTop: scale(7) }}>
-              Danh mục
+            <Text
+              style={{
+                marginBottom: scale(7),
+                marginTop: scale(7),
+                color: theme.text,
+              }}
+            >
+              {TEXT.category[lang]}
             </Text>
             <FlatList
               horizontal
@@ -583,6 +724,9 @@ export default function Card() {
                   style={[
                     styles.chip,
                     newCardSet.category === item && styles.chipActive,
+                    newCardSet.category === item && {
+                      backgroundColor: theme.primary,
+                    },
                   ]}
                   onPress={() =>
                     setNewCardSet((c) => ({ ...c, category: item }))
@@ -592,6 +736,7 @@ export default function Card() {
                     style={[
                       styles.chipText,
                       newCardSet.category === item && styles.chipTextActive,
+                      newCardSet.category === item && { color: "#fff" },
                     ]}
                   >
                     {item}
@@ -601,16 +746,16 @@ export default function Card() {
             />
             <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
               <TouchableOpacity
-                style={styles.modalBtn}
+                style={[styles.modalBtn, { backgroundColor: theme.card }]}
                 onPress={() => setAddModalVisible(false)}
               >
-                <Text>Huỷ</Text>
+                <Text style={{ color: theme.text }}>{TEXT.cancel[lang]}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: "#2C4BFF" }]}
+                style={[styles.modalBtn, { backgroundColor: theme.primary }]}
                 onPress={handleAddCardSet}
               >
-                <Text style={{ color: "#fff" }}>Tạo</Text>
+                <Text style={{ color: "#fff" }}>{TEXT.create[lang]}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -619,24 +764,50 @@ export default function Card() {
       {/* Edit CardSet Modal */}
       <Modal visible={editModal.visible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Sửa bộ thẻ</Text>
+          <View
+            style={[styles.modalContent, { backgroundColor: theme.section }]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              {TEXT.edit_card_set[lang]}
+            </Text>
             <TextInput
-              style={styles.input}
-              placeholder="Tên bộ thẻ"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.card_set_name[lang]}
+              placeholderTextColor={theme.subText}
               value={editCardSet.title}
               onChangeText={(t) => setEditCardSet((c) => ({ ...c, title: t }))}
             />
             <TextInput
-              style={styles.input}
-              placeholder="Mô tả"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.card_set_desc[lang]}
+              placeholderTextColor={theme.subText}
               value={editCardSet.description}
               onChangeText={(t) =>
                 setEditCardSet((c) => ({ ...c, description: t }))
               }
             />
-            <Text style={{ marginBottom: scale(7), marginTop: scale(7) }}>
-              Danh mục
+            <Text
+              style={{
+                marginBottom: scale(7),
+                marginTop: scale(7),
+                color: theme.text,
+              }}
+            >
+              {TEXT.category[lang]}
             </Text>
             <FlatList
               horizontal
@@ -647,6 +818,9 @@ export default function Card() {
                   style={[
                     styles.chip,
                     editCardSet.category === item && styles.chipActive,
+                    editCardSet.category === item && {
+                      backgroundColor: theme.primary,
+                    },
                   ]}
                   onPress={() =>
                     setEditCardSet((c) => ({ ...c, category: item }))
@@ -656,6 +830,7 @@ export default function Card() {
                     style={[
                       styles.chipText,
                       editCardSet.category === item && styles.chipTextActive,
+                      editCardSet.category === item && { color: "#fff" },
                     ]}
                   >
                     {item}
@@ -665,16 +840,16 @@ export default function Card() {
             />
             <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
               <TouchableOpacity
-                style={styles.modalBtn}
+                style={[styles.modalBtn, { backgroundColor: theme.card }]}
                 onPress={() => setEditModal({ visible: false, cardSetId: "" })}
               >
-                <Text>Huỷ</Text>
+                <Text style={{ color: theme.text }}>{TEXT.cancel[lang]}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: "#2C4BFF" }]}
+                style={[styles.modalBtn, { backgroundColor: theme.primary }]}
                 onPress={handleSaveEditCardSet}
               >
-                <Text style={{ color: "#fff" }}>Lưu</Text>
+                <Text style={{ color: "#fff" }}>{TEXT.save[lang]}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -700,19 +875,26 @@ export default function Card() {
           <Animated.View
             style={[
               styles.modalContainer,
-              { transform: [{ translateY: contentAnim }] },
+              {
+                transform: [{ translateY: contentAnim }],
+                backgroundColor: theme.section,
+              },
             ]}
           >
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setFilterVisible(false)}>
-                <Ionicons name="close" size={scale(28)} color="#222" />
+                <Ionicons name="close" size={scale(28)} color={theme.text} />
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Bộ lọc</Text>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>
+                {TEXT.filter[lang]}
+              </Text>
               <View style={{ width: scale(28) }} />
             </View>
 
             {/* Categories */}
-            <Text style={styles.sectionTitle}>Danh mục</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              {TEXT.categories[lang]}
+            </Text>
             <View style={styles.rowWrap}>
               {filterCategories.map((cat) => (
                 <Pressable
@@ -720,6 +902,9 @@ export default function Card() {
                   style={[
                     styles.chip,
                     selectedCategories.includes(cat) && styles.chipActive,
+                    selectedCategories.includes(cat) && {
+                      backgroundColor: theme.primary,
+                    },
                   ]}
                   onPress={() => toggleCategory(cat)}
                 >
@@ -727,6 +912,7 @@ export default function Card() {
                     style={[
                       styles.chipText,
                       selectedCategories.includes(cat) && styles.chipTextActive,
+                      selectedCategories.includes(cat) && { color: "#fff" },
                     ]}
                   >
                     {cat}
@@ -737,16 +923,24 @@ export default function Card() {
 
             {/* Buttons */}
             <View style={styles.btnRow}>
-              <TouchableOpacity style={styles.clearBtn} onPress={clearFilter}>
-                <Text style={[styles.btnText, { color: "#2C4BFF" }]}>
-                  Xóa lọc
+              <TouchableOpacity
+                style={[
+                  styles.clearBtn,
+                  { borderColor: theme.primary, backgroundColor: theme.card },
+                ]}
+                onPress={clearFilter}
+              >
+                <Text style={[styles.btnText, { color: theme.primary }]}>
+                  {TEXT.clear_filter[lang]}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.applyBtn}
+                style={[styles.applyBtn, { backgroundColor: theme.primary }]}
                 onPress={() => setFilterVisible(false)}
               >
-                <Text style={[styles.btnText, { color: "#fff" }]}>Áp dụng</Text>
+                <Text style={[styles.btnText, { color: "#fff" }]}>
+                  {TEXT.apply[lang]}
+                </Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -757,7 +951,7 @@ export default function Card() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", paddingHorizontal: 0 },
+  container: { flex: 1, paddingHorizontal: 0 },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -766,7 +960,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(24),
     justifyContent: "space-between",
   },
-  title: { fontSize: scale(30), fontWeight: "bold", color: "#222" },
+  title: { fontSize: scale(30), fontWeight: "bold" },
   avatar: {
     width: scale(38),
     height: scale(38),
@@ -776,7 +970,6 @@ const styles = StyleSheet.create({
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F7F8FB",
     borderRadius: scale(16),
     marginHorizontal: scale(24),
     paddingHorizontal: scale(8),
@@ -787,7 +980,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: scale(16),
     marginLeft: scale(6),
-    color: "#222",
     backgroundColor: "transparent",
   },
   filterBtn: { padding: scale(6), marginLeft: scale(10) },
@@ -818,7 +1010,7 @@ const styles = StyleSheet.create({
     height: scale(80),
     opacity: 0.95,
   },
-  categoryTitle: { fontSize: scale(15), fontWeight: "bold", color: "#408BFF" },
+  categoryTitle: { fontSize: scale(15), fontWeight: "bold" },
   tabsRow: {
     flexDirection: "row",
     marginLeft: scale(24),
@@ -833,24 +1025,21 @@ const styles = StyleSheet.create({
     borderRadius: scale(16),
     backgroundColor: "transparent",
   },
-  tabText: { fontSize: scale(15), color: "#BFC8D6", fontWeight: "600" },
+  tabText: { fontSize: scale(15), fontWeight: "600" },
   tabActive: {
-    backgroundColor: "#3B5EFF",
     borderRadius: scale(16),
     paddingHorizontal: scale(18),
     paddingVertical: scale(6),
     marginLeft: scale(8),
   },
-  tabActiveText: { fontSize: scale(15), color: "#fff", fontWeight: "bold" },
+  tabActiveText: { fontSize: scale(15), fontWeight: "bold" },
   cardItemBox: { marginBottom: scale(11) },
   cardItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
     borderRadius: scale(16),
     marginHorizontal: scale(24),
     padding: scale(16),
-    shadowColor: "#BFC8D6",
     shadowOpacity: 0.12,
     shadowRadius: scale(8),
     elevation: 3,
@@ -860,7 +1049,6 @@ const styles = StyleSheet.create({
     height: scale(58),
     borderRadius: scale(12),
     marginRight: scale(16),
-    backgroundColor: "#F2F2F2",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -871,11 +1059,10 @@ const styles = StyleSheet.create({
     borderRadius: scale(8),
     backgroundColor: "#D9DBE9",
   },
-  cardTitle: { fontSize: scale(17), fontWeight: "bold", color: "#222" },
-  cardAuthor: { fontSize: scale(13), color: "#BFC8D6", marginLeft: scale(2) },
+  cardTitle: { fontSize: scale(17), fontWeight: "bold" },
+  cardAuthor: { fontSize: scale(13), marginLeft: scale(2) },
   cardTotalCards: {
     fontSize: scale(14),
-    color: "#3B5EFF",
     marginLeft: scale(2),
     fontWeight: "bold",
   },
@@ -889,7 +1076,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContainer: {
-    backgroundColor: "#fff",
     borderTopLeftRadius: scale(32),
     borderTopRightRadius: scale(32),
     paddingVertical: scale(24),
@@ -903,12 +1089,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: scale(16),
   },
-  modalTitle: { fontSize: scale(22), fontWeight: "700", color: "#222" },
+  modalTitle: { fontSize: scale(22), fontWeight: "700" },
   sectionTitle: {
     fontSize: scale(17),
     fontWeight: "600",
     marginVertical: scale(10),
-    color: "#232323",
   },
   rowWrap: {
     flexDirection: "row",
@@ -923,9 +1108,9 @@ const styles = StyleSheet.create({
     paddingVertical: scale(8),
     margin: scale(4),
   },
-  chipActive: { backgroundColor: "#2C4BFF" },
-  chipText: { color: "#b9b9c9", fontWeight: "500", fontSize: scale(15) },
-  chipTextActive: { color: "#fff" },
+  chipActive: {},
+  chipText: { fontWeight: "500", fontSize: scale(15) },
+  chipTextActive: {},
   btnRow: {
     flexDirection: "row",
     marginTop: scale(18),
@@ -934,21 +1119,17 @@ const styles = StyleSheet.create({
   },
   clearBtn: {
     borderWidth: 1,
-    borderColor: "#2C4BFF",
-    backgroundColor: "#fff",
     borderRadius: scale(12),
     paddingVertical: scale(13),
     paddingHorizontal: scale(30),
   },
   applyBtn: {
-    backgroundColor: "#2C4BFF",
     borderRadius: scale(12),
     paddingVertical: scale(13),
     paddingHorizontal: scale(30),
   },
   btnText: { fontSize: scale(17), fontWeight: "600" },
   modalContent: {
-    backgroundColor: "#fff",
     borderRadius: scale(18),
     padding: scale(22),
     width: SCREEN_WIDTH * 0.85,
@@ -959,12 +1140,10 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#E4E6EF",
     borderRadius: scale(8),
     padding: scale(10),
     marginBottom: scale(10),
     fontSize: scale(16),
-    color: "#222",
     backgroundColor: "#F7F8FB",
   },
   modalBtn: {
@@ -972,14 +1151,13 @@ const styles = StyleSheet.create({
     paddingVertical: scale(10),
     borderRadius: scale(8),
     marginLeft: scale(10),
-    backgroundColor: "#F4F4FB",
     marginTop: scale(6),
+    alignItems: "center",
   },
   fab: {
     position: "absolute",
     right: scale(32),
     bottom: scale(36),
-    backgroundColor: "#3B5EFF",
     width: scale(56),
     height: scale(56),
     borderRadius: scale(28),
@@ -990,7 +1168,6 @@ const styles = StyleSheet.create({
   },
   emptyAddBtn: {
     marginTop: scale(18),
-    backgroundColor: "#3B5EFF",
     borderRadius: scale(18),
     flexDirection: "row",
     alignItems: "center",

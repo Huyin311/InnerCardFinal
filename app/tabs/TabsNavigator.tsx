@@ -6,10 +6,13 @@ import Study from "./Study";
 import Group from "./Group";
 import Setting from "./Setting";
 import { Ionicons } from "@expo/vector-icons";
+import { useDarkMode } from "../DarkModeContext";
 
 const Tab = createBottomTabNavigator();
 
 export default function TabsNavigator() {
+  const { darkMode } = useDarkMode?.() || { darkMode: false };
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -33,6 +36,10 @@ export default function TabsNavigator() {
         },
         tabBarActiveTintColor: "#2C4BFF",
         tabBarInactiveTintColor: "#BFC8D6",
+        tabBarStyle: {
+          backgroundColor: darkMode ? "#181E25" : "#fff",
+          borderTopColor: darkMode ? "#232c3b" : "#E4EAF2",
+        },
       })}
     >
       <Tab.Screen name="Home" component={Home} />

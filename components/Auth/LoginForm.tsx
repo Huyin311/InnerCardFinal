@@ -9,13 +9,15 @@ import {
   Platform,
   Dimensions,
 } from "react-native";
-import { Colors } from "../../constants/Colors";
+import { useDarkMode } from "../../app/DarkModeContext";
+import { useLanguage } from "../../app/LanguageContext";
+import { lightTheme, darkTheme } from "../../app/theme";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../../AppNavigator";
 
-// ----- Responsive helpers -----
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const isTablet = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) >= 600;
+// Responsive helpers
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const isTablet = Math.min(SCREEN_WIDTH, 0) >= 600;
 const clamp = (v: number, min: number, max: number) =>
   Math.max(Math.min(v, max), min);
 const baseWidth = 375;
@@ -25,10 +27,19 @@ const scale = (size: number) => {
   const ratio = SCREEN_WIDTH / baseWidth;
   return clamp(size * ratio, size * minScale, size * maxScale);
 };
-// --------------------------------
 
 type Props = {
   navigation: StackNavigationProp<RootStackParamList, "Login">;
+};
+
+const TEXT = {
+  title: { vi: "Đăng nhập", en: "Log In" },
+  email: { vi: "Email của bạn", en: "Your Email" },
+  password: { vi: "Mật khẩu", en: "Password" },
+  forgot: { vi: "Quên mật khẩu?", en: "Forget password?" },
+  login: { vi: "Đăng nhập", en: "Login" },
+  noAccount: { vi: "Chưa có tài khoản?", en: "Don't have an account?" },
+  signup: { vi: "Đăng ký", en: "Sign up" },
 };
 
 export default function LoginForm({ navigation }: Props) {
@@ -36,69 +47,139 @@ export default function LoginForm({ navigation }: Props) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  const { darkMode } = useDarkMode();
+  const { lang } = useLanguage();
+  const theme = darkMode ? darkTheme : lightTheme;
+
+  // Chỉnh độ rộng viền tuỳ ý
+  const SIDE_BORDER_WIDTH = 16;
+
   return (
-    <KeyboardAvoidingView
-      style={styles.card}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <Text style={styles.title}>Log In</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Your Email"
-        placeholderTextColor={Colors.light.icon}
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Viền trái */}
+      <View
+        style={[
+          styles.sideBorder,
+          { backgroundColor: theme.background, width: SIDE_BORDER_WIDTH },
+        ]}
       />
-      <View style={styles.passwordRow}>
-        <TextInput
-          style={[styles.input, { flex: 1, marginBottom: 0 }]}
-          placeholder="Password"
-          placeholderTextColor={Colors.light.icon}
-          value={password}
-          secureTextEntry={!showPassword}
-          onChangeText={setPassword}
-        />
-        <TouchableOpacity
-          style={styles.eyeBtn}
-          onPress={() => setShowPassword((v) => !v)}
-        >
-          <Text style={{ color: Colors.light.icon, fontSize: scale(18) }}>
-            {showPassword ? "👁️" : "🙈"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity style={styles.forgotBtn}>
-        <Text style={styles.forgotText}>Forget password?</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate("Tabs")}
+      {/* Nội dung chính */}
+      <KeyboardAvoidingView
+        style={styles.screen}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
-      <View style={styles.row}>
-        <Text style={styles.grayText}> Don&#39;t have an account? </Text>
-        <Text style={styles.link} onPress={() => navigation.navigate("Signup")}>
-          Sign up
-        </Text>
-      </View>
-      {/* ... phần còn lại giữ nguyên ... */}
-    </KeyboardAvoidingView>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              shadowColor: theme.primary,
+            },
+          ]}
+        >
+          <Text style={[styles.title, { color: theme.text }]}>
+            {TEXT.title[lang]}
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.background,
+                color: theme.text,
+                borderBottomColor: theme.primary,
+              },
+            ]}
+            placeholder={TEXT.email[lang]}
+            placeholderTextColor={theme.subText}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  flex: 1,
+                  marginBottom: 0,
+                  backgroundColor: theme.background,
+                  color: theme.text,
+                  borderBottomColor: theme.primary,
+                },
+              ]}
+              placeholder={TEXT.password[lang]}
+              placeholderTextColor={theme.subText}
+              value={password}
+              secureTextEntry={!showPassword}
+              onChangeText={setPassword}
+            />
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setShowPassword((v) => !v)}
+            >
+              <Text style={{ color: theme.subText, fontSize: scale(18) }}>
+                {showPassword ? "👁️" : "🙈"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={styles.forgotBtn}>
+            <Text style={[styles.forgotText, { color: theme.subText }]}>
+              {TEXT.forgot[lang]}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: theme.primary }]}
+            onPress={() => navigation.navigate("Tabs")}
+          >
+            <Text style={[styles.buttonText, { color: theme.background }]}>
+              {TEXT.login[lang]}
+            </Text>
+          </TouchableOpacity>
+          <View style={styles.row}>
+            <Text style={[styles.grayText, { color: theme.subText }]}>
+              {TEXT.noAccount[lang]}
+            </Text>
+            <Text
+              style={[styles.link, { color: theme.primary }]}
+              onPress={() => navigation.navigate("Signup")}
+            >
+              {TEXT.signup[lang]}
+            </Text>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+      {/* Viền phải */}
+      <View
+        style={[
+          styles.sideBorder,
+          { backgroundColor: theme.background, width: SIDE_BORDER_WIDTH },
+        ]}
+      />
+    </View>
   );
 }
 
-// Responsive card width
 const CARD_WIDTH = clamp(Math.min(SCREEN_WIDTH * 0.92, 410), 320, 500);
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  sideBorder: {
+    height: "100%",
+  },
+  screen: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   card: {
     width: CARD_WIDTH,
-    backgroundColor: Colors.light.background,
     borderRadius: scale(16),
     padding: scale(22),
-    shadowColor: Colors.light.icon,
     shadowOpacity: 0.08,
     shadowRadius: scale(10),
     elevation: 3,
@@ -109,21 +190,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: scale(30),
     fontWeight: "bold",
-    color: Colors.light.text,
     marginBottom: scale(16),
     alignSelf: "flex-start",
   },
   input: {
     width: "100%",
-    backgroundColor: Colors.light.background,
     borderRadius: scale(8),
     paddingHorizontal: scale(14),
     paddingVertical: scale(11),
     fontSize: scale(16),
     marginBottom: scale(13),
-    borderWidth: 1,
-    borderColor: Colors.light.muted,
-    color: Colors.light.text,
+    borderWidth: 0,
+    borderBottomWidth: 2,
   },
   passwordRow: {
     flexDirection: "row",
@@ -141,11 +219,9 @@ const styles = StyleSheet.create({
     marginVertical: scale(6),
   },
   forgotText: {
-    color: Colors.light.icon,
     fontSize: scale(13),
   },
   button: {
-    backgroundColor: Colors.light.tint,
     borderRadius: scale(8),
     paddingVertical: scale(13),
     width: "100%",
@@ -153,7 +229,6 @@ const styles = StyleSheet.create({
     marginVertical: scale(14),
   },
   buttonText: {
-    color: Colors.light.background,
     fontWeight: "bold",
     fontSize: scale(16),
   },
@@ -163,13 +238,12 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   grayText: {
-    color: Colors.light.icon,
     fontSize: scale(13),
   },
   link: {
-    color: Colors.light.tint,
     fontWeight: "bold",
     fontSize: scale(13),
+    marginLeft: 4,
   },
   orRow: {
     flexDirection: "row",
@@ -178,14 +252,12 @@ const styles = StyleSheet.create({
     marginVertical: scale(12),
   },
   orText: {
-    color: Colors.light.icon,
     fontSize: scale(13),
     marginHorizontal: scale(10),
   },
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.light.muted,
   },
   socialRow: {
     flexDirection: "row",
@@ -194,10 +266,8 @@ const styles = StyleSheet.create({
     gap: scale(16),
   },
   socialBtn: {
-    backgroundColor: Colors.light.background,
     borderRadius: scale(30),
     borderWidth: 1,
-    borderColor: Colors.light.muted,
     padding: scale(14),
     marginHorizontal: scale(10),
   },

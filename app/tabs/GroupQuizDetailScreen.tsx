@@ -11,13 +11,64 @@ import {
 } from "react-native";
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { useRoute, useNavigation } from "@react-navigation/native";
+import { useDarkMode } from "../DarkModeContext";
+import { useLanguage } from "../LanguageContext";
+import { lightTheme, darkTheme } from "../theme";
 
 // Responsive scale helper
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
-// Fake user role - replace with context/props in real app
-const isAdmin = true; // true = chủ nhóm (quản trị), false = thành viên
+// Đa ngữ
+const TEXT = {
+  quizDetail: { vi: "Chi tiết bài kiểm tra", en: "Quiz Detail" },
+  ready: { vi: "Sẵn sàng", en: "Ready" },
+  ongoing: { vi: "Đang diễn ra", en: "Ongoing" },
+  locked: { vi: "Đã khoá", en: "Locked" },
+  ended: { vi: "Đã kết thúc", en: "Ended" },
+  public: { vi: "Công khai", en: "Public" },
+  adminOnly: { vi: "Chỉ QTV", en: "Admins only" },
+  questions: { vi: "Số câu hỏi:", en: "Questions:" },
+  timeLimit: { vi: "Thời gian làm bài:", en: "Time limit:" },
+  minutes: { vi: "phút", en: "min" },
+  start: { vi: "Bắt đầu:", en: "Start:" },
+  end: { vi: "Kết thúc:", en: "End:" },
+  participants: { vi: "Thành viên đã tham gia:", en: "Participants:" },
+  avgScore: { vi: "Điểm TB:", en: "Avg score:" },
+  highestScore: { vi: "Điểm cao nhất:", en: "Highest:" },
+  lowestScore: { vi: "Điểm thấp nhất:", en: "Lowest:" },
+  cardList: { vi: "Danh sách thẻ", en: "Flashcards" },
+  allCards: { vi: "Xem tất cả các thẻ", en: "See all cards" },
+  join: { vi: "Tham gia làm bài", en: "Take quiz" },
+  joined: { vi: "Đã tham gia", en: "Joined" },
+  startQuiz: { vi: "Bắt đầu bài kiểm tra", en: "Start quiz" },
+  share: { vi: "Chia sẻ", en: "Share" },
+  export: { vi: "Xuất file", en: "Export" },
+  results: { vi: "Kết quả", en: "Results" },
+  edit: { vi: "Sửa", en: "Edit" },
+  delete: { vi: "Xoá", en: "Delete" },
+  lock: { vi: "Khoá", en: "Lock" },
+  confirmDelete: { vi: "Xác nhận xoá", en: "Confirm delete" },
+  deleteQuizMsg: {
+    vi: "Bạn có chắc chắn muốn xoá bài kiểm tra này?",
+    en: "Are you sure you want to delete this quiz?",
+  },
+  cancel: { vi: "Huỷ", en: "Cancel" },
+  copied: { vi: "Đã sao chép liên kết bài kiểm tra!", en: "Quiz link copied!" },
+  exportSuccess: {
+    vi: "Xuất file bài kiểm tra thành công!",
+    en: "Exported quiz file successfully!",
+  },
+  lockedMsg: {
+    vi: "Đã khoá bài kiểm tra\nThành viên sẽ không thể tham gia nữa!",
+    en: "Quiz locked. Members can't join anymore!",
+  },
+  seeAllCardsTitle: { vi: "Xem tất cả thẻ", en: "View all cards" },
+  seeAllCardsDesc: {
+    vi: "Chức năng này sẽ hiển thị toàn bộ danh sách thẻ.",
+    en: "This feature will show all flashcards.",
+  },
+};
 
 type Flashcard = {
   id: string;
@@ -47,7 +98,14 @@ type Quiz = {
   lowestScore?: number;
 };
 
+// Fake user role - replace with context/props in real app
+const isAdmin = true; // true = chủ nhóm (quản trị), false = thành viên
+
 export default function GroupQuizDetailScreen() {
+  const { darkMode } = useDarkMode();
+  const theme = darkMode ? darkTheme : lightTheme;
+  const { lang } = useLanguage();
+
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const quiz: Quiz = route.params?.quiz || {};
@@ -62,26 +120,27 @@ export default function GroupQuizDetailScreen() {
 
   // Các hành động quản trị
   function handleDeleteQuiz() {
-    Alert.alert("Xác nhận xoá", "Bạn có chắc chắn muốn xoá bài kiểm tra này?", [
-      { text: "Huỷ", style: "cancel" },
-      { text: "Xoá", style: "destructive", onPress: () => navigation.goBack() },
+    Alert.alert(TEXT.confirmDelete[lang], TEXT.deleteQuizMsg[lang], [
+      { text: TEXT.cancel[lang], style: "cancel" },
+      {
+        text: TEXT.delete[lang],
+        style: "destructive",
+        onPress: () => navigation.goBack(),
+      },
     ]);
   }
   function handleEditQuiz() {
     navigation.navigate("GroupQuizCreateScreen", { editQuiz: quiz });
   }
   function handleLockQuiz() {
-    Alert.alert(
-      "Đã khoá bài kiểm tra",
-      "Thành viên sẽ không thể tham gia nữa!",
-    );
+    Alert.alert(TEXT.locked[lang], TEXT.lockedMsg[lang]);
   }
   function handleViewResults() {
-    navigation.navigate("QuizResultsScreen", { quizId: quiz.id }); // giả sử có màn này
+    navigation.navigate("QuizResultsScreen", { quizId: quiz.id });
   }
   function handleCopyLink() {
     // Clipboard API hoặc Share
-    Alert.alert("Đã sao chép liên kết bài kiểm tra!");
+    Alert.alert(TEXT.copied[lang]);
   }
   function handleStartQuiz() {
     navigation.navigate("QuizTakingScreen", { quiz });
@@ -90,23 +149,43 @@ export default function GroupQuizDetailScreen() {
     navigation.navigate("QuizTakingScreen", { quiz });
   }
   function handleExportQuiz() {
-    Alert.alert("Export", "Xuất file bài kiểm tra thành công!");
+    Alert.alert(TEXT.export[lang], TEXT.exportSuccess[lang]);
   }
 
   // Giả lập trạng thái tham gia
   const userHasJoined = false; // true nếu đã tham gia, dùng context thực tế thay thế
 
+  // Hiển thị status theo trạng thái
+  function getStatusText(status?: Quiz["status"]) {
+    if (status === "ready") return TEXT.ready[lang];
+    if (status === "ongoing") return TEXT.ongoing[lang];
+    if (status === "locked") return TEXT.locked[lang];
+    if (status === "ended") return TEXT.ended[lang];
+    return "";
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerRow}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
+      <View
+        style={[
+          styles.headerRow,
+          { backgroundColor: theme.section, borderBottomColor: theme.card },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         >
-          <Ionicons name="arrow-back" size={scale(24)} color="#222" />
+          <Ionicons name="arrow-back" size={scale(24)} color={theme.primary} />
         </TouchableOpacity>
-        <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
-          Chi tiết bài kiểm tra
+        <Text
+          style={[styles.title, { color: theme.primary }]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {TEXT.quizDetail[lang]}
         </Text>
         <View style={{ width: scale(24) }} />
       </View>
@@ -115,12 +194,15 @@ export default function GroupQuizDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.quizTitle}>{quiz.title}</Text>
           {!!quiz.description && (
-            <Text style={styles.desc}>{quiz.description}</Text>
+            <Text style={[styles.desc, { color: theme.text }]}>
+              {quiz.description}
+            </Text>
           )}
           <View style={styles.metaRow}>
             {quiz.creator && (
               <Text style={styles.metaItem}>
-                <Ionicons name="person" size={14} color="#666" /> {quiz.creator}
+                <Ionicons name="person" size={14} color={theme.subText} />{" "}
+                {quiz.creator}
               </Text>
             )}
             {quiz.status && (
@@ -139,18 +221,10 @@ export default function GroupQuizDetailScreen() {
                       ? "#e67e22"
                       : quiz.status === "ended"
                         ? "#e74c3c"
-                        : "#2C4BFF"
+                        : theme.primary
                   }
                 />{" "}
-                {quiz.status === "ready"
-                  ? "Sẵn sàng"
-                  : quiz.status === "ongoing"
-                    ? "Đang diễn ra"
-                    : quiz.status === "locked"
-                      ? "Đã khoá"
-                      : quiz.status === "ended"
-                        ? "Đã kết thúc"
-                        : ""}
+                {getStatusText(quiz.status)}
               </Text>
             )}
             {quiz.isPublic !== undefined && (
@@ -158,52 +232,76 @@ export default function GroupQuizDetailScreen() {
                 <Ionicons
                   name={quiz.isPublic ? "earth-outline" : "lock-closed-outline"}
                   size={14}
-                  color={quiz.isPublic ? "#2C4BFF" : "#e67e22"}
+                  color={quiz.isPublic ? theme.primary : "#e67e22"}
                 />{" "}
-                {quiz.isPublic ? "Công khai" : "Chỉ QTV"}
+                {quiz.isPublic ? TEXT.public[lang] : TEXT.adminOnly[lang]}
               </Text>
             )}
           </View>
         </View>
         <View style={styles.section}>
           <View style={styles.infoRow}>
-            <Ionicons name="help-circle-outline" size={16} color="#2C4BFF" />
-            <Text style={styles.infoLabel}>Số câu hỏi:</Text>
+            <Ionicons
+              name="help-circle-outline"
+              size={16}
+              color={theme.primary}
+            />
+            <Text style={[styles.infoLabel, { color: theme.text }]}>
+              {TEXT.questions[lang]}
+            </Text>
             <Text style={styles.infoValue}>
               {quiz.totalQuestions ?? quiz.flashcards?.length ?? "--"}
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="timer-outline" size={16} color="#2C4BFF" />
-            <Text style={styles.infoLabel}>Thời gian làm bài:</Text>
-            <Text style={styles.infoValue}>{quiz.timeLimit ?? "--"} phút</Text>
+            <Ionicons name="timer-outline" size={16} color={theme.primary} />
+            <Text style={[styles.infoLabel, { color: theme.text }]}>
+              {TEXT.timeLimit[lang]}
+            </Text>
+            <Text style={styles.infoValue}>
+              {quiz.timeLimit ?? "--"} {TEXT.minutes[lang]}
+            </Text>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="calendar-outline" size={16} color="#2C4BFF" />
-            <Text style={styles.infoLabel}>Bắt đầu:</Text>
+            <Ionicons name="calendar-outline" size={16} color={theme.primary} />
+            <Text style={[styles.infoLabel, { color: theme.text }]}>
+              {TEXT.start[lang]}
+            </Text>
             <Text style={styles.infoValue}>{formatDate(quiz.startTime)}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="calendar" size={16} color="#e74c3c" />
-            <Text style={styles.infoLabel}>Kết thúc:</Text>
+            <Text style={[styles.infoLabel, { color: theme.text }]}>
+              {TEXT.end[lang]}
+            </Text>
             <Text style={styles.infoValue}>{formatDate(quiz.endTime)}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="people-outline" size={16} color="#2C4BFF" />
-            <Text style={styles.infoLabel}>Thành viên đã tham gia:</Text>
+            <Ionicons name="people-outline" size={16} color={theme.primary} />
+            <Text style={[styles.infoLabel, { color: theme.text }]}>
+              {TEXT.participants[lang]}
+            </Text>
             <Text style={styles.infoValue}>{quiz.totalParticipants ?? 0}</Text>
           </View>
           {typeof quiz.avgScore === "number" && (
             <View style={styles.infoRow}>
-              <Ionicons name="stats-chart-outline" size={16} color="#2C4BFF" />
-              <Text style={styles.infoLabel}>Điểm TB:</Text>
+              <Ionicons
+                name="stats-chart-outline"
+                size={16}
+                color={theme.primary}
+              />
+              <Text style={[styles.infoLabel, { color: theme.text }]}>
+                {TEXT.avgScore[lang]}
+              </Text>
               <Text style={styles.infoValue}>{quiz.avgScore}</Text>
             </View>
           )}
           {typeof quiz.highestScore === "number" && (
             <View style={styles.infoRow}>
               <Ionicons name="trending-up-outline" size={16} color="#27ae60" />
-              <Text style={styles.infoLabel}>Điểm cao nhất:</Text>
+              <Text style={[styles.infoLabel, { color: theme.text }]}>
+                {TEXT.highestScore[lang]}
+              </Text>
               <Text style={styles.infoValue}>{quiz.highestScore}</Text>
             </View>
           )}
@@ -214,7 +312,9 @@ export default function GroupQuizDetailScreen() {
                 size={16}
                 color="#e74c3c"
               />
-              <Text style={styles.infoLabel}>Điểm thấp nhất:</Text>
+              <Text style={[styles.infoLabel, { color: theme.text }]}>
+                {TEXT.lowestScore[lang]}
+              </Text>
               <Text style={styles.infoValue}>{quiz.lowestScore}</Text>
             </View>
           )}
@@ -222,8 +322,8 @@ export default function GroupQuizDetailScreen() {
         {/* Danh sách thẻ (chỉ admin mới thấy) */}
         {isAdmin && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>
-              Danh sách thẻ ({quiz.flashcards?.length || 0})
+            <Text style={[styles.sectionLabel, { color: theme.primary }]}>
+              {TEXT.cardList[lang]} ({quiz.flashcards?.length || 0})
             </Text>
             {(quiz.flashcards || []).slice(0, 5).map((card, idx) => (
               <View key={card.id} style={styles.cardItem}>
@@ -250,12 +350,12 @@ export default function GroupQuizDetailScreen() {
                 style={styles.linkBtn}
                 onPress={() =>
                   Alert.alert(
-                    "Xem tất cả thẻ",
-                    "Chức năng này sẽ hiển thị toàn bộ danh sách thẻ.",
+                    TEXT.seeAllCardsTitle[lang],
+                    TEXT.seeAllCardsDesc[lang],
                   )
                 }
               >
-                <Text style={styles.linkBtnText}>Xem tất cả các thẻ</Text>
+                <Text style={styles.linkBtnText}>{TEXT.allCards[lang]}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -264,13 +364,13 @@ export default function GroupQuizDetailScreen() {
         <View style={styles.section}>
           {!isAdmin && (
             <TouchableOpacity
-              style={styles.primaryBtn}
+              style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
               onPress={handleJoinQuiz}
               disabled={userHasJoined}
             >
               <Ionicons name="log-in-outline" size={18} color="#fff" />
               <Text style={styles.primaryBtnText}>
-                {userHasJoined ? "Đã tham gia" : "Tham gia làm bài"}
+                {userHasJoined ? TEXT.joined[lang] : TEXT.join[lang]}
               </Text>
             </TouchableOpacity>
           )}
@@ -280,25 +380,33 @@ export default function GroupQuizDetailScreen() {
               onPress={handleStartQuiz}
             >
               <Ionicons name="play" size={18} color="#fff" />
-              <Text style={styles.primaryBtnText}>Bắt đầu bài kiểm tra</Text>
+              <Text style={styles.primaryBtnText}>{TEXT.startQuiz[lang]}</Text>
             </TouchableOpacity>
           )}
           {/* Các chức năng thêm cho mọi vai trò */}
           <View style={styles.extraActions}>
             <TouchableOpacity style={styles.iconBtn} onPress={handleCopyLink}>
-              <Ionicons name="link-outline" size={19} color="#2C4BFF" />
-              <Text style={styles.iconBtnText}>Chia sẻ</Text>
+              <Ionicons name="link-outline" size={19} color={theme.primary} />
+              <Text style={styles.iconBtnText}>{TEXT.share[lang]}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconBtn} onPress={handleExportQuiz}>
-              <Ionicons name="download-outline" size={19} color="#2C4BFF" />
-              <Text style={styles.iconBtnText}>Xuất file</Text>
+              <Ionicons
+                name="download-outline"
+                size={19}
+                color={theme.primary}
+              />
+              <Text style={styles.iconBtnText}>{TEXT.export[lang]}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconBtn}
               onPress={handleViewResults}
             >
-              <Ionicons name="stats-chart-outline" size={19} color="#2C4BFF" />
-              <Text style={styles.iconBtnText}>Kết quả</Text>
+              <Ionicons
+                name="stats-chart-outline"
+                size={19}
+                color={theme.primary}
+              />
+              <Text style={styles.iconBtnText}>{TEXT.results[lang]}</Text>
             </TouchableOpacity>
           </View>
           {/* Chức năng quản trị */}
@@ -308,8 +416,8 @@ export default function GroupQuizDetailScreen() {
                 style={styles.adminBtn}
                 onPress={handleEditQuiz}
               >
-                <Feather name="edit-2" size={18} color="#2C4BFF" />
-                <Text style={styles.adminBtnText}>Sửa</Text>
+                <Feather name="edit-2" size={18} color={theme.primary} />
+                <Text style={styles.adminBtnText}>{TEXT.edit[lang]}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.adminBtn}
@@ -317,7 +425,7 @@ export default function GroupQuizDetailScreen() {
               >
                 <Feather name="trash-2" size={18} color="#e74c3c" />
                 <Text style={[styles.adminBtnText, { color: "#e74c3c" }]}>
-                  Xoá
+                  {TEXT.delete[lang]}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -325,7 +433,7 @@ export default function GroupQuizDetailScreen() {
                 onPress={handleLockQuiz}
               >
                 <Ionicons name="lock-closed-outline" size={18} color="#888" />
-                <Text style={styles.adminBtnText}>Khoá</Text>
+                <Text style={styles.adminBtnText}>{TEXT.lock[lang]}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -336,14 +444,13 @@ export default function GroupQuizDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7F9FC" },
+  container: { flex: 1 },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: scale(14),
     paddingTop: scale(12),
     paddingBottom: scale(10),
-    backgroundColor: "#fff",
     borderBottomWidth: 0.5,
     borderBottomColor: "#E4EAF2",
     justifyContent: "space-between",
@@ -351,7 +458,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: scale(18),
     fontWeight: "bold",
-    color: "#2C4BFF",
     flex: 1,
     textAlign: "center",
     marginLeft: scale(-24),
@@ -378,7 +484,6 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontWeight: "bold",
-    color: "#3B5EFF",
     fontSize: scale(15),
     marginBottom: scale(7),
   },

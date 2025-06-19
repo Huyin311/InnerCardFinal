@@ -6,9 +6,9 @@ import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
-  useColorScheme,
 } from "react-native";
-import { Colors } from "../../constants/Colors";
+import { lightTheme, darkTheme } from "../../app/theme";
+import { useDarkMode } from "../../app/DarkModeContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
@@ -45,8 +45,8 @@ type Props = {
 
 const OnboardingSlider: React.FC<Props> = ({ onFinish, onSignUp, onLogin }) => {
   const [current, setCurrent] = React.useState(0);
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === "dark" ? Colors.dark : Colors.light;
+  const { darkMode } = useDarkMode();
+  const theme = darkMode ? darkTheme : lightTheme;
 
   const goNext = () => {
     if (current < slides.length - 1) {
@@ -59,7 +59,7 @@ const OnboardingSlider: React.FC<Props> = ({ onFinish, onSignUp, onLogin }) => {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <TouchableOpacity style={styles.skip} onPress={onFinish}>
-        <Text style={[styles.skipText, { color: theme.icon }]}>Skip</Text>
+        <Text style={[styles.skipText, { color: theme.subText }]}>Skip</Text>
       </TouchableOpacity>
       <Image
         source={slides[current].image}
@@ -69,7 +69,7 @@ const OnboardingSlider: React.FC<Props> = ({ onFinish, onSignUp, onLogin }) => {
       <Text style={[styles.title, { color: theme.text }]}>
         {slides[current].title}
       </Text>
-      <Text style={[styles.description, { color: theme.icon }]}>
+      <Text style={[styles.description, { color: theme.subText }]}>
         {slides[current].description}
       </Text>
       <View style={styles.dots}>
@@ -79,7 +79,8 @@ const OnboardingSlider: React.FC<Props> = ({ onFinish, onSignUp, onLogin }) => {
             style={[
               styles.dot,
               {
-                backgroundColor: current === idx ? theme.tint : theme.muted,
+                backgroundColor:
+                  current === idx ? theme.primary : theme.section,
                 width: current === idx ? scale(18) : scale(8),
                 height: scale(8),
                 borderRadius: scale(4),
@@ -92,7 +93,7 @@ const OnboardingSlider: React.FC<Props> = ({ onFinish, onSignUp, onLogin }) => {
       {current === slides.length - 1 ? (
         <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={[styles.signUpBtn, { backgroundColor: theme.tint }]}
+            style={[styles.signUpBtn, { backgroundColor: theme.primary }]}
             onPress={onSignUp}
           >
             <Text style={[styles.signUpText, { color: theme.background }]}>
@@ -104,20 +105,20 @@ const OnboardingSlider: React.FC<Props> = ({ onFinish, onSignUp, onLogin }) => {
               styles.loginBtn,
               {
                 backgroundColor: theme.background,
-                borderColor: theme.tint,
+                borderColor: theme.primary,
                 borderWidth: 1.5,
               },
             ]}
             onPress={onLogin}
           >
-            <Text style={[styles.loginText, { color: theme.tint }]}>
+            <Text style={[styles.loginText, { color: theme.primary }]}>
               Log in
             </Text>
           </TouchableOpacity>
         </View>
       ) : (
         <TouchableOpacity
-          style={[styles.nextBtn, { backgroundColor: theme.tint }]}
+          style={[styles.nextBtn, { backgroundColor: theme.primary }]}
           onPress={goNext}
         >
           <Text style={[styles.nextText, { color: theme.background }]}>

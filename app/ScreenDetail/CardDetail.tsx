@@ -18,13 +18,100 @@ import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
+import { useDarkMode } from "../DarkModeContext";
+import { lightTheme, darkTheme } from "../theme";
+import { useLanguage } from "../LanguageContext";
 
-// Responsive helpers
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
-// Ảnh mặc định
 const fallbackImage = require("../../assets/images/avatar.png");
+
+const TEXT = {
+  card_set_title: { vi: "Tên bộ thẻ", en: "Card Set Name" },
+  cards: { vi: "thẻ", en: "cards" },
+  set_description: { vi: "Mô tả bộ thẻ", en: "Set description" },
+  card_list: { vi: "Danh sách thẻ", en: "Card List" },
+  add_card: { vi: "Thêm thẻ", en: "Add Card" },
+  topic: { vi: "Chủ đề", en: "Topic" },
+  illustration: { vi: "Ảnh minh họa", en: "Illustration" },
+  auto_suggest: { vi: "Tự động gợi ý", en: "Auto Suggest" },
+  auto_loading: { vi: "...", en: "..." },
+  regenerate_image: { vi: "Tạo lại ảnh khác", en: "Regenerate Image" },
+  edit_card: { vi: "Sửa thẻ", en: "Edit Card" },
+  delete_card_confirm: { vi: "Xóa thẻ?", en: "Delete card?" },
+  delete_card_desc: {
+    vi: "Bạn có chắc muốn xóa thẻ này?",
+    en: "Are you sure you want to delete this card?",
+  },
+  cancel: { vi: "Hủy", en: "Cancel" },
+  delete: { vi: "Xóa", en: "Delete" },
+  save: { vi: "Lưu", en: "Save" },
+  add_manual: { vi: "Nhập thủ công", en: "Manual Entry" },
+  add_bulk: { vi: "Nhập hàng loạt từ file", en: "Bulk Import" },
+  import_hint: {
+    vi: "Bạn có thể chọn nhập từng thẻ hoặc nhập hàng loạt từ file CSV/JSON",
+    en: "You can add cards manually or import from CSV/JSON file",
+  },
+  import_loading: { vi: "Đang nhập file...", en: "Importing file..." },
+  card_front: { vi: "Mặt trước (từ/cụm từ)", en: "Front (word/phrase)" },
+  card_phonetic: {
+    vi: "Phiên âm (có thể tự nhập hoặc để trống)",
+    en: "Phonetic (optional)",
+  },
+  card_pos: {
+    vi: "Từ loại (danh từ, động từ...)",
+    en: "Part of Speech (noun, verb, ...)",
+  },
+  card_back: {
+    vi: "Mặt sau (nghĩa/giải thích)",
+    en: "Back (meaning/definition)",
+  },
+  card_example: { vi: "Ví dụ (không bắt buộc)", en: "Example (optional)" },
+  card_image: {
+    vi: "Link ảnh (tùy chọn, nếu không có sẽ dùng ảnh gợi ý hoặc mặc định)",
+    en: "Image url (optional, will use suggested/default if empty)",
+  },
+  illustration_hint: {
+    vi: "Ảnh minh họa (có thể sửa hoặc tạo lại)",
+    en: "Illustration (can be edited or regenerated)",
+  },
+  no_card: {
+    vi: "Bộ thẻ này chưa có thẻ nào",
+    en: "This set has no cards yet",
+  },
+  edit_set: { vi: "Chỉnh sửa bộ thẻ", en: "Edit Card Set" },
+  set_name: { vi: "Tên bộ thẻ", en: "Set Name" },
+  set_desc: { vi: "Mô tả bộ thẻ", en: "Set Description" },
+  add: { vi: "Thêm", en: "Add" },
+  study: { vi: "Học", en: "Study" },
+  edit_set_action: { vi: "Chỉnh sửa bộ thẻ", en: "Edit Card Set" },
+  new_card_title: { vi: "Thêm thẻ mới", en: "Add new card" },
+  missing_info: { vi: "Thiếu thông tin", en: "Missing information" },
+  missing_info_detail: {
+    vi: "Mặt trước và mặt sau không được để trống",
+    en: "Front and back cannot be empty",
+  },
+  import_invalid: {
+    vi: "Không có dữ liệu hợp lệ trong file!",
+    en: "No valid data in file!",
+  },
+  import_success: {
+    vi: "Đã nhập thành công {count} thẻ!",
+    en: "Successfully imported {count} cards!",
+  },
+  import_fail: {
+    vi: "Có lỗi khi đọc file hoặc định dạng không đúng!",
+    en: "Failed to read file or invalid format!",
+  },
+  enter_vocab_first: {
+    vi: "Nhập từ vựng trước đã!",
+    en: "Please enter the vocabulary first!",
+  },
+  edit_card_title: { vi: "Sửa thẻ", en: "Edit Card" },
+  add_card_modal_title: { vi: "Thêm thẻ mới", en: "Add new card" },
+  edit_set_modal_title: { vi: "Chỉnh sửa bộ thẻ", en: "Edit Card Set" },
+};
 
 const initialCardSet = {
   id: "1",
@@ -96,7 +183,6 @@ async function translateToVietnamese(word: string): Promise<string> {
       `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(word)}`,
     );
     const data = await res.json();
-    // data[0][0][0] là nghĩa dịch sang tiếng Việt ngắn gọn
     return data?.[0]?.[0]?.[0] || "";
   } catch {
     return "";
@@ -129,7 +215,6 @@ async function fetchWordData(word: string) {
         "";
       audio = data[0].phonetics?.find((p: any) => p.audio)?.audio || "";
     }
-    // Dịch nghĩa tiếng Việt ngắn gọn cho từ/cụm từ
     const viMeaning = await translateToVietnamese(word);
     return {
       phonetic,
@@ -165,6 +250,9 @@ async function fetchPixabayImage(word: string) {
 
 export default function CardDetail() {
   const navigation = useNavigation<any>();
+  const { darkMode } = useDarkMode();
+  const theme = darkMode ? darkTheme : lightTheme;
+  const { lang } = useLanguage();
   const [cardSet, setCardSet] = useState(initialCardSet);
   const [editSet, setEditSet] = useState(false);
   const [editCard, setEditCard] = useState<null | (typeof cardSet.cards)[0]>(
@@ -172,7 +260,6 @@ export default function CardDetail() {
   );
   const [modalVisible, setModalVisible] = useState(false);
 
-  // Trạng thái form thêm thẻ mới
   const [newCard, setNewCard] = useState({
     front: "",
     back: "",
@@ -184,16 +271,13 @@ export default function CardDetail() {
   const [loadingAuto, setLoadingAuto] = useState(false);
   const [imgPreview, setImgPreview] = useState("");
 
-  // Edit bộ thẻ
   const [editName, setEditName] = useState(cardSet.name);
   const [editDesc, setEditDesc] = useState(cardSet.description);
 
-  // Bulk import state
   const [importing, setImporting] = useState(false);
 
   const isOwner = cardSet.isOwner;
 
-  // Xử lý import file từ trong modal
   async function handleBulkImportFromModal() {
     try {
       setImporting(true);
@@ -228,7 +312,7 @@ export default function CardDetail() {
           .filter(Boolean);
       }
       if (!cards.length) {
-        Alert.alert("Không có dữ liệu hợp lệ trong file!");
+        Alert.alert(TEXT.import_invalid[lang]);
         setImporting(false);
         return;
       }
@@ -242,18 +326,23 @@ export default function CardDetail() {
         totalCards: prev.totalCards + newCards.length,
       }));
       setModalVisible(false);
-      Alert.alert(`Đã nhập thành công ${newCards.length} thẻ!`);
+      Alert.alert(
+        TEXT.import_success[lang].replace(
+          "{count}",
+          newCards.length.toString(),
+        ),
+      );
     } catch (err) {
-      Alert.alert("Có lỗi khi đọc file hoặc định dạng không đúng!");
+      Alert.alert(TEXT.import_fail[lang]);
     }
     setImporting(false);
   }
 
   function handleDeleteCard(cardId: string) {
-    Alert.alert("Xóa thẻ?", "Bạn có chắc muốn xóa thẻ này?", [
-      { text: "Hủy" },
+    Alert.alert(TEXT.delete_card_confirm[lang], TEXT.delete_card_desc[lang], [
+      { text: TEXT.cancel[lang] },
       {
-        text: "Xóa",
+        text: TEXT.delete[lang],
         style: "destructive",
         onPress: () => {
           setCardSet((prev) => ({
@@ -277,10 +366,7 @@ export default function CardDetail() {
 
   async function handleAddCard() {
     if (!newCard.front.trim() || !newCard.back.trim()) {
-      Alert.alert(
-        "Thiếu thông tin",
-        "Mặt trước và mặt sau không được để trống",
-      );
+      Alert.alert(TEXT.missing_info[lang], TEXT.missing_info_detail[lang]);
       return;
     }
     setCardSet((prev) => ({
@@ -316,10 +402,9 @@ export default function CardDetail() {
     setEditSet(false);
   }
 
-  // Tự động điền phiên âm, từ loại, nghĩa, ví dụ, ảnh
   async function handleAutoFill() {
     if (!newCard.front.trim()) {
-      Alert.alert("Nhập từ vựng trước đã!");
+      Alert.alert(TEXT.enter_vocab_first[lang]);
       return;
     }
     setLoadingAuto(true);
@@ -337,10 +422,9 @@ export default function CardDetail() {
     setLoadingAuto(false);
   }
 
-  // Lấy lại ảnh ngẫu nhiên
   async function handleRegenerateImage() {
     if (!newCard.front.trim()) {
-      Alert.alert("Nhập từ vựng trước đã!");
+      Alert.alert(TEXT.enter_vocab_first[lang]);
       return;
     }
     setLoadingAuto(true);
@@ -350,7 +434,6 @@ export default function CardDetail() {
     setLoadingAuto(false);
   }
 
-  // Khi user gõ link ảnh thủ công thì preview cũng thay đổi
   function handleImageInput(t: string) {
     setNewCard((c) => ({ ...c, image: t }));
     setImgPreview(t);
@@ -358,17 +441,25 @@ export default function CardDetail() {
 
   const renderHeader = () => (
     <View>
-      <Text style={styles.cardSetTitle}>{cardSet.name}</Text>
-      <Text style={styles.subInfo}>{cardSet.totalCards} thẻ</Text>
-      <Text style={styles.sectionTitle}>Mô tả bộ thẻ</Text>
-      <Text style={styles.description}>{cardSet.description}</Text>
+      <Text style={[styles.cardSetTitle, { color: theme.text }]}>
+        {cardSet.name}
+      </Text>
+      <Text style={[styles.subInfo, { color: theme.subText || "#BFC8D6" }]}>
+        {cardSet.totalCards} {TEXT.cards[lang]}
+      </Text>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>
+        {TEXT.set_description[lang]}
+      </Text>
+      <Text style={[styles.description, { color: theme.text }]}>
+        {cardSet.description}
+      </Text>
       <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitle}>
-          Danh sách thẻ ({cardSet.totalCards})
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          {TEXT.card_list[lang]} ({cardSet.totalCards})
         </Text>
         {isOwner && (
           <TouchableOpacity
-            style={styles.addBtn}
+            style={[styles.addBtn, { backgroundColor: theme.primary }]}
             onPress={() => setModalVisible(true)}
           >
             <Ionicons name="add" size={scale(22)} color="#fff" />
@@ -379,26 +470,30 @@ export default function CardDetail() {
                 fontWeight: "bold",
               }}
             >
-              Thêm thẻ
+              {TEXT.add_card[lang]}
             </Text>
           </TouchableOpacity>
         )}
       </View>
-      {/* Chủ đề */}
-      <Text style={styles.sectionTitle}>Chủ đề</Text>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>
+        {TEXT.topic[lang]}
+      </Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={{ marginBottom: scale(24) }}
       >
         {cardSet.topics.map((topic, idx) => (
-          <View style={styles.topicChip} key={topic.name}>
+          <View
+            key={topic.name}
+            style={[styles.topicChip, { backgroundColor: theme.card }]}
+          >
             <Ionicons
               name={topic.unlocked ? "lock-open" : "lock-closed"}
               size={scale(16)}
-              color={topic.unlocked ? "#2C4BFF" : "#bfc8d6"}
+              color={topic.unlocked ? theme.primary : "#bfc8d6"}
             />
-            <Text style={styles.topicChipText}>
+            <Text style={[styles.topicChipText, { color: theme.text }]}>
               {topic.name} ({topic.total})
             </Text>
           </View>
@@ -408,40 +503,33 @@ export default function CardDetail() {
   );
 
   return (
-    <View style={styles.container}>
-      {/* Header Flashcard Info */}
-      <View style={styles.headerBox}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.headerBox, { backgroundColor: theme.section }]}>
         <TouchableOpacity
           style={styles.backBtn}
           onPress={() => {
             navigation.goBack();
           }}
         >
-          <Ionicons name="arrow-back" size={scale(24)} color="#222" />
+          <Ionicons name="arrow-back" size={scale(24)} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{cardSet.name}</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>
+          {cardSet.name}
+        </Text>
         <Image source={cardSet.cover} style={styles.headerImage} />
-        {isOwner && (
-          <View
-            style={{
-              flexDirection: "row",
-              position: "absolute",
-              right: scale(18),
-              top: scale(48),
-              zIndex: 99,
-            }}
-          ></View>
-        )}
       </View>
-      {/* Danh sách thẻ */}
       <FlatList
         data={cardSet.cards}
         keyExtractor={(item) => item.id}
-        style={styles.contentBox}
+        style={[styles.contentBox, { backgroundColor: theme.section }]}
         ListHeaderComponent={renderHeader()}
         renderItem={({ item }) => (
-          <View style={styles.flashCardRow}>
-            {/* Ảnh bên trái */}
+          <View
+            style={[
+              styles.flashCardRow,
+              { backgroundColor: theme.card || "#F7F8FB" },
+            ]}
+          >
             <View style={{ alignItems: "center", marginRight: scale(14) }}>
               <View pointerEvents="none">
                 <Image
@@ -457,17 +545,16 @@ export default function CardDetail() {
               </View>
               <Text
                 style={{
-                  color: "#aaa",
+                  color: theme.subText || "#aaa",
                   fontSize: scale(12),
                   marginTop: scale(2),
                 }}
               >
-                Ảnh minh họa
+                {TEXT.illustration[lang]}
               </Text>
             </View>
-            {/* Nội dung bên phải */}
             <View style={{ flex: 1 }}>
-              <Text style={styles.flashCardFront}>
+              <Text style={[styles.flashCardFront, { color: theme.primary }]}>
                 {item.front}{" "}
                 {item.partOfSpeech ? (
                   <Text style={styles.cardPOS}>({item.partOfSpeech})</Text>
@@ -476,26 +563,55 @@ export default function CardDetail() {
                   <Text style={styles.cardPhonetic}> {item.phonetic}</Text>
                 ) : null}
               </Text>
-              <Text style={styles.flashCardBack}>{item.back}</Text>
+              <Text style={[styles.flashCardBack, { color: theme.text }]}>
+                {item.back}
+              </Text>
               {item.example ? (
-                <Text style={styles.flashCardExample}>
+                <Text
+                  style={[
+                    styles.flashCardExample,
+                    { color: theme.subText || "#888" },
+                  ]}
+                >
                   <Ionicons name="bulb" size={scale(13)} color="#FFD600" />{" "}
-                  <Text style={{ color: "#888" }}>{item.example}</Text>
+                  <Text style={{ color: theme.subText || "#888" }}>
+                    {item.example}
+                  </Text>
                 </Text>
               ) : null}
               {isOwner && (
                 <View style={{ flexDirection: "row", marginTop: scale(8) }}>
                   <TouchableOpacity
-                    style={styles.iconBtn}
+                    style={[
+                      styles.iconBtn,
+                      {
+                        backgroundColor: theme.section,
+                        borderColor: theme.card,
+                      },
+                    ]}
                     onPress={() => setEditCard({ ...item })}
                   >
-                    <Feather name="edit-2" size={scale(18)} color="#2C4BFF" />
+                    <Feather
+                      name="edit-2"
+                      size={scale(18)}
+                      color={theme.primary}
+                    />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.iconBtn}
+                    style={[
+                      styles.iconBtn,
+                      {
+                        backgroundColor: theme.section,
+                        borderColor: theme.card,
+                      },
+                    ]}
                     onPress={() => handleDeleteCard(item.id)}
                   >
-                    <Feather name="trash-2" size={scale(18)} color="#e74c3c" />
+                    <Feather
+                      name="trash-2"
+                      size={scale(18)}
+                      color={theme.danger || "#e74c3c"}
+                    />
                   </TouchableOpacity>
                 </View>
               )}
@@ -504,27 +620,37 @@ export default function CardDetail() {
         )}
         ListEmptyComponent={
           <Text
-            style={{ color: "#bbb", textAlign: "center", marginTop: scale(30) }}
+            style={{
+              color: theme.subText || "#bbb",
+              textAlign: "center",
+              marginTop: scale(30),
+            }}
           >
-            Bộ thẻ này chưa có thẻ nào
+            {TEXT.no_card[lang]}
           </Text>
         }
         contentContainerStyle={{ paddingBottom: scale(120) }}
       />
 
-      {/* Thanh action dưới cùng */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.favBtn}>
+      <View
+        style={[
+          styles.bottomBar,
+          { backgroundColor: theme.section, shadowColor: theme.text },
+        ]}
+      >
+        <TouchableOpacity
+          style={[styles.favBtn, { backgroundColor: theme.card || "#FFEFF6" }]}
+        >
           <MaterialIcons name="star-border" size={scale(28)} color="#FF7F00" />
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.buyBtn}
+          style={[styles.buyBtn, { backgroundColor: theme.primary }]}
           onPress={() => navigation.navigate("Study" as never)}
         >
           <Text
             style={{ color: "#fff", fontWeight: "bold", fontSize: scale(18) }}
           >
-            Học
+            {TEXT.study[lang]}
           </Text>
         </TouchableOpacity>
         {isOwner && (
@@ -538,7 +664,7 @@ export default function CardDetail() {
             <Text
               style={{ color: "#fff", fontWeight: "bold", fontSize: scale(18) }}
             >
-              Chỉnh sửa bộ thẻ
+              {TEXT.edit_set_action[lang]}
             </Text>
           </TouchableOpacity>
         )}
@@ -558,7 +684,13 @@ export default function CardDetail() {
             keyboardVerticalOffset={Platform.OS === "ios" ? scale(40) : 0}
           >
             <View
-              style={[styles.modalContent, { maxHeight: SCREEN_HEIGHT * 0.85 }]}
+              style={[
+                styles.modalContent,
+                {
+                  maxHeight: SCREEN_HEIGHT * 0.85,
+                  backgroundColor: theme.section,
+                },
+              ]}
             >
               <ScrollView
                 contentContainerStyle={{
@@ -568,18 +700,19 @@ export default function CardDetail() {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
-                <Text style={styles.modalTitle}>Thêm thẻ mới</Text>
-                {/* Lựa chọn thêm từng thẻ hoặc hàng loạt */}
+                <Text style={[styles.modalTitle, { color: theme.text }]}>
+                  {TEXT.add_card_modal_title[lang]}
+                </Text>
                 <View style={{ flexDirection: "row", marginBottom: scale(12) }}>
                   <TouchableOpacity
                     style={[
                       styles.modalBtn,
-                      { flex: 1, backgroundColor: "#2C4BFF" },
+                      { flex: 1, backgroundColor: theme.primary },
                     ]}
                     disabled={true}
                   >
                     <Text style={{ color: "#fff", textAlign: "center" }}>
-                      Nhập thủ công
+                      {TEXT.add_manual[lang]}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -587,56 +720,78 @@ export default function CardDetail() {
                       styles.modalBtn,
                       {
                         flex: 1,
-                        backgroundColor: "#fff",
+                        backgroundColor: theme.section,
                         marginLeft: scale(8),
                         borderWidth: 1,
-                        borderColor: "#2C4BFF",
+                        borderColor: theme.primary,
                       },
                     ]}
                     disabled={importing}
                     onPress={handleBulkImportFromModal}
                   >
-                    <Text style={{ color: "#2C4BFF", textAlign: "center" }}>
-                      Nhập hàng loạt từ file
+                    <Text style={{ color: theme.primary, textAlign: "center" }}>
+                      {TEXT.add_bulk[lang]}
                     </Text>
                   </TouchableOpacity>
                 </View>
                 <Text
                   style={{
-                    color: "#888",
+                    color: theme.subText || "#888",
                     fontSize: scale(13),
                     marginBottom: scale(8),
                   }}
                 >
                   {importing
-                    ? "Đang nhập file..."
-                    : "Bạn có thể chọn nhập từng thẻ hoặc nhập hàng loạt từ file CSV/JSON"}
+                    ? TEXT.import_loading[lang]
+                    : TEXT.import_hint[lang]}
                 </Text>
-                {/* Form thêm từng thẻ thủ công */}
                 <TextInput
-                  style={styles.input}
-                  placeholder="Mặt trước (từ/cụm từ)"
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.card,
+                      color: theme.text,
+                      borderColor: theme.card,
+                    },
+                  ]}
+                  placeholder={TEXT.card_front[lang]}
+                  placeholderTextColor={theme.subText || "#888"}
                   value={newCard.front}
                   onChangeText={(t) => setNewCard((c) => ({ ...c, front: t }))}
                   returnKeyType="next"
                 />
                 <View style={{ flexDirection: "row", marginBottom: scale(8) }}>
                   <TouchableOpacity
-                    style={[styles.modalBtn, { flex: 1 }]}
+                    style={[
+                      styles.modalBtn,
+                      { flex: 1, backgroundColor: theme.card },
+                    ]}
                     onPress={handleAutoFill}
                     disabled={loadingAuto}
                   >
-                    <Text>{loadingAuto ? "..." : "Tự động gợi ý"}</Text>
+                    <Text style={{ color: theme.text }}>
+                      {loadingAuto
+                        ? TEXT.auto_loading[lang]
+                        : TEXT.auto_suggest[lang]}
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modalBtn, { flex: 1, marginLeft: scale(8) }]}
+                    style={[
+                      styles.modalBtn,
+                      {
+                        flex: 1,
+                        marginLeft: scale(8),
+                        backgroundColor: theme.card,
+                      },
+                    ]}
                     onPress={handleRegenerateImage}
                     disabled={loadingAuto}
                   >
-                    <Text>Tạo lại ảnh khác</Text>
+                    <Text style={{ color: theme.text }}>
+                      {TEXT.regenerate_image[lang]}
+                    </Text>
                   </TouchableOpacity>
                 </View>
-                {/* Preview ảnh minh họa */}
                 <View style={{ alignItems: "center", marginBottom: scale(8) }}>
                   <View pointerEvents="none">
                     <Image
@@ -656,13 +811,26 @@ export default function CardDetail() {
                       onError={() => setImgPreview("")}
                     />
                   </View>
-                  <Text style={{ color: "#aaa", fontSize: scale(13) }}>
-                    Ảnh minh họa (có thể sửa hoặc tạo lại)
+                  <Text
+                    style={{
+                      color: theme.subText || "#aaa",
+                      fontSize: scale(13),
+                    }}
+                  >
+                    {TEXT.illustration_hint[lang]}
                   </Text>
                 </View>
                 <TextInput
-                  style={styles.input}
-                  placeholder="Phiên âm (có thể tự nhập hoặc để trống)"
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.card,
+                      color: theme.text,
+                      borderColor: theme.card,
+                    },
+                  ]}
+                  placeholder={TEXT.card_phonetic[lang]}
+                  placeholderTextColor={theme.subText || "#888"}
                   value={newCard.phonetic}
                   onChangeText={(t) =>
                     setNewCard((c) => ({ ...c, phonetic: t }))
@@ -670,8 +838,16 @@ export default function CardDetail() {
                   returnKeyType="next"
                 />
                 <TextInput
-                  style={styles.input}
-                  placeholder="Từ loại (danh từ, động từ...)"
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.card,
+                      color: theme.text,
+                      borderColor: theme.card,
+                    },
+                  ]}
+                  placeholder={TEXT.card_pos[lang]}
+                  placeholderTextColor={theme.subText || "#888"}
                   value={newCard.partOfSpeech}
                   onChangeText={(t) =>
                     setNewCard((c) => ({ ...c, partOfSpeech: t }))
@@ -679,15 +855,31 @@ export default function CardDetail() {
                   returnKeyType="next"
                 />
                 <TextInput
-                  style={styles.input}
-                  placeholder="Mặt sau (nghĩa/giải thích)"
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.card,
+                      color: theme.text,
+                      borderColor: theme.card,
+                    },
+                  ]}
+                  placeholder={TEXT.card_back[lang]}
+                  placeholderTextColor={theme.subText || "#888"}
                   value={newCard.back}
                   onChangeText={(t) => setNewCard((c) => ({ ...c, back: t }))}
                   returnKeyType="next"
                 />
                 <TextInput
-                  style={styles.input}
-                  placeholder="Ví dụ (không bắt buộc)"
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.card,
+                      color: theme.text,
+                      borderColor: theme.card,
+                    },
+                  ]}
+                  placeholder={TEXT.card_example[lang]}
+                  placeholderTextColor={theme.subText || "#888"}
                   value={newCard.example}
                   onChangeText={(t) =>
                     setNewCard((c) => ({ ...c, example: t }))
@@ -695,8 +887,16 @@ export default function CardDetail() {
                   returnKeyType="next"
                 />
                 <TextInput
-                  style={styles.input}
-                  placeholder="Link ảnh (tùy chọn, nếu không có sẽ dùng ảnh gợi ý hoặc mặc định)"
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.card,
+                      color: theme.text,
+                      borderColor: theme.card,
+                    },
+                  ]}
+                  placeholder={TEXT.card_image[lang]}
+                  placeholderTextColor={theme.subText || "#888"}
                   value={newCard.image}
                   onChangeText={handleImageInput}
                   returnKeyType="done"
@@ -705,17 +905,22 @@ export default function CardDetail() {
                   style={{ flexDirection: "row", justifyContent: "flex-end" }}
                 >
                   <TouchableOpacity
-                    style={styles.modalBtn}
+                    style={[styles.modalBtn, { backgroundColor: theme.card }]}
                     onPress={() => setModalVisible(false)}
                   >
-                    <Text>Hủy</Text>
+                    <Text style={{ color: theme.text }}>
+                      {TEXT.cancel[lang]}
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modalBtn, { backgroundColor: "#2C4BFF" }]}
+                    style={[
+                      styles.modalBtn,
+                      { backgroundColor: theme.primary },
+                    ]}
                     onPress={handleAddCard}
                     disabled={loadingAuto}
                   >
-                    <Text style={{ color: "#fff" }}>Thêm</Text>
+                    <Text style={{ color: "#fff" }}>{TEXT.add[lang]}</Text>
                   </TouchableOpacity>
                 </View>
               </ScrollView>
@@ -724,100 +929,170 @@ export default function CardDetail() {
         </View>
       </Modal>
 
-      {/* Modal sửa thẻ */}
       <Modal visible={!!editCard} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Sửa thẻ</Text>
+          <View
+            style={[styles.modalContent, { backgroundColor: theme.section }]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              {TEXT.edit_card_title[lang]}
+            </Text>
             <TextInput
-              style={styles.input}
-              placeholder="Mặt trước"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.card_front[lang]}
+              placeholderTextColor={theme.subText || "#888"}
               value={editCard?.front || ""}
               onChangeText={(t) => setEditCard((c) => c && { ...c, front: t })}
             />
             <TextInput
-              style={styles.input}
-              placeholder="Phiên âm"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.card_phonetic[lang]}
+              placeholderTextColor={theme.subText || "#888"}
               value={editCard?.phonetic || ""}
               onChangeText={(t) =>
                 setEditCard((c) => c && { ...c, phonetic: t })
               }
             />
             <TextInput
-              style={styles.input}
-              placeholder="Từ loại"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.card_pos[lang]}
+              placeholderTextColor={theme.subText || "#888"}
               value={editCard?.partOfSpeech || ""}
               onChangeText={(t) =>
                 setEditCard((c) => c && { ...c, partOfSpeech: t })
               }
             />
             <TextInput
-              style={styles.input}
-              placeholder="Mặt sau"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.card_back[lang]}
+              placeholderTextColor={theme.subText || "#888"}
               value={editCard?.back || ""}
               onChangeText={(t) => setEditCard((c) => c && { ...c, back: t })}
             />
             <TextInput
-              style={styles.input}
-              placeholder="Ví dụ"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.card_example[lang]}
+              placeholderTextColor={theme.subText || "#888"}
               value={editCard?.example || ""}
               onChangeText={(t) =>
                 setEditCard((c) => c && { ...c, example: t })
               }
             />
             <TextInput
-              style={styles.input}
-              placeholder="Link ảnh"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.card_image[lang]}
+              placeholderTextColor={theme.subText || "#888"}
               value={editCard?.image || ""}
               onChangeText={(t) => setEditCard((c) => c && { ...c, image: t })}
             />
             <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
               <TouchableOpacity
-                style={styles.modalBtn}
+                style={[styles.modalBtn, { backgroundColor: theme.card }]}
                 onPress={() => setEditCard(null)}
               >
-                <Text>Hủy</Text>
+                <Text style={{ color: theme.text }}>{TEXT.cancel[lang]}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: "#2C4BFF" }]}
+                style={[styles.modalBtn, { backgroundColor: theme.primary }]}
                 onPress={handleSaveEditCard}
               >
-                <Text style={{ color: "#fff" }}>Lưu</Text>
+                <Text style={{ color: "#fff" }}>{TEXT.save[lang]}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* Modal sửa bộ thẻ */}
       <Modal visible={editSet} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Chỉnh sửa bộ thẻ</Text>
+          <View
+            style={[styles.modalContent, { backgroundColor: theme.section }]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              {TEXT.edit_set_modal_title[lang]}
+            </Text>
             <TextInput
-              style={styles.input}
-              placeholder="Tên bộ thẻ"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.set_name[lang]}
+              placeholderTextColor={theme.subText || "#888"}
               value={editName}
               onChangeText={setEditName}
             />
             <TextInput
-              style={styles.input}
-              placeholder="Mô tả bộ thẻ"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.card,
+                  color: theme.text,
+                  borderColor: theme.card,
+                },
+              ]}
+              placeholder={TEXT.set_desc[lang]}
+              placeholderTextColor={theme.subText || "#888"}
               value={editDesc}
               onChangeText={setEditDesc}
             />
             <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
               <TouchableOpacity
-                style={styles.modalBtn}
+                style={[styles.modalBtn, { backgroundColor: theme.card }]}
                 onPress={() => setEditSet(false)}
               >
-                <Text>Hủy</Text>
+                <Text style={{ color: theme.text }}>{TEXT.cancel[lang]}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: "#2C4BFF" }]}
+                style={[styles.modalBtn, { backgroundColor: theme.primary }]}
                 onPress={handleSaveSetInfo}
               >
-                <Text style={{ color: "#fff" }}>Lưu</Text>
+                <Text style={{ color: "#fff" }}>{TEXT.save[lang]}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -827,10 +1102,11 @@ export default function CardDetail() {
   );
 }
 
+// ...styles giữ nguyên...
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
   headerBox: {
-    backgroundColor: "#FFEFF6",
     paddingTop: scale(80),
     paddingBottom: scale(24),
     paddingHorizontal: scale(18),
@@ -856,7 +1132,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: scale(25),
     fontWeight: "700",
-    color: "#2C2C2C",
     marginTop: scale(6),
     marginBottom: scale(12),
     maxWidth: "75%",
@@ -871,10 +1146,8 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
     borderRadius: scale(14),
     borderWidth: 2,
-    borderColor: "#fff",
   },
   contentBox: {
-    backgroundColor: "#fff",
     marginTop: scale(-10),
     borderTopLeftRadius: scale(32),
     borderTopRightRadius: scale(32),
@@ -884,12 +1157,10 @@ const styles = StyleSheet.create({
   cardSetTitle: {
     fontSize: scale(22),
     fontWeight: "bold",
-    color: "#222",
     marginBottom: scale(2),
     flexWrap: "wrap",
   },
   subInfo: {
-    color: "#BFC8D6",
     marginBottom: scale(10),
     fontSize: scale(15),
   },
@@ -898,10 +1169,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: scale(8),
     marginBottom: scale(5),
-    color: "#232323",
   },
   description: {
-    color: "#444",
     fontSize: scale(15),
     marginBottom: scale(12),
     lineHeight: scale(22),
@@ -914,7 +1183,6 @@ const styles = StyleSheet.create({
     marginBottom: scale(5),
   },
   addBtn: {
-    backgroundColor: "#2C4BFF",
     flexDirection: "row",
     alignItems: "center",
     borderRadius: scale(12),
@@ -924,32 +1192,27 @@ const styles = StyleSheet.create({
   flashCardRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    backgroundColor: "#F7F8FB",
     borderRadius: scale(14),
     marginBottom: scale(12),
     padding: scale(14),
-    shadowColor: "#BFC8D6",
     shadowOpacity: 0.06,
     shadowRadius: scale(3),
     elevation: 1,
   },
-  flashCardFront: { fontSize: scale(16), fontWeight: "bold", color: "#2C4BFF" },
+  flashCardFront: { fontSize: scale(16), fontWeight: "bold" },
   cardPOS: { fontWeight: "normal", color: "#444", fontSize: scale(15) },
   cardPhonetic: { fontWeight: "normal", color: "#888", fontSize: scale(15) },
-  flashCardBack: { fontSize: scale(16), color: "#222", marginTop: scale(2) },
-  flashCardExample: { fontSize: scale(13), color: "#888", marginTop: scale(5) },
+  flashCardBack: { fontSize: scale(16), marginTop: scale(2) },
+  flashCardExample: { fontSize: scale(13), marginTop: scale(5) },
   iconBtn: {
     padding: scale(7),
     marginLeft: scale(8),
     borderRadius: scale(7),
-    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#F3F3F7",
   },
   topicChip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F4F4FB",
     borderRadius: scale(18),
     paddingHorizontal: scale(14),
     paddingVertical: scale(8),
@@ -957,15 +1220,13 @@ const styles = StyleSheet.create({
     marginTop: scale(2),
     marginBottom: scale(8),
   },
-  topicChipText: { color: "#232323", fontWeight: "600", marginLeft: scale(6) },
+  topicChipText: { fontWeight: "600", marginLeft: scale(6) },
   bottomBar: {
     flexDirection: "row",
-    backgroundColor: "#fff",
     borderTopLeftRadius: scale(18),
     borderTopRightRadius: scale(18),
     padding: scale(14),
     paddingBottom: scale(28),
-    shadowColor: "#222",
     shadowOpacity: 0.06,
     shadowRadius: scale(6),
     elevation: 10,
@@ -973,14 +1234,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   favBtn: {
-    backgroundColor: "#FFEFF6",
     padding: scale(14),
     borderRadius: scale(16),
     marginRight: scale(12),
   },
   buyBtn: {
     flex: 1,
-    backgroundColor: "#2C4BFF",
     borderRadius: scale(16),
     paddingVertical: scale(16),
     alignItems: "center",
@@ -1004,17 +1263,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "#fff",
     borderRadius: scale(18),
     padding: scale(22),
     width: "92%",
     maxWidth: scale(420),
     alignSelf: "center",
-    shadowColor: "#222",
     shadowOpacity: 0.11,
     shadowRadius: scale(10),
     elevation: 5,
-    // maxHeight: scale(520), // Đã bỏ dòng này để sử dụng maxHeight động
   },
   modalTitle: {
     fontSize: scale(19),
@@ -1023,20 +1279,16 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#E4E6EF",
     borderRadius: scale(8),
     padding: scale(10),
     marginBottom: scale(10),
     fontSize: scale(16),
-    color: "#222",
-    backgroundColor: "#F7F8FB",
   },
   modalBtn: {
     paddingHorizontal: scale(20),
     paddingVertical: scale(10),
     borderRadius: scale(8),
     marginLeft: scale(10),
-    backgroundColor: "#F4F4FB",
     marginTop: scale(6),
     alignItems: "center",
   },
