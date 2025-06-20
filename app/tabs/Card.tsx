@@ -8,11 +8,9 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
-  Pressable,
   Dimensions,
   Animated,
   Modal,
-  TouchableWithoutFeedback,
   ActivityIndicator,
   Alert,
 } from "react-native";
@@ -22,9 +20,78 @@ import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../../AppNavigator";
 import { useDarkMode } from "../DarkModeContext";
 import { lightTheme, darkTheme } from "../theme";
-import { useLanguage } from "../LanguageContext"; // Thêm vào để hỗ trợ đa ngữ
+import { useLanguage } from "../LanguageContext";
+import { supabase } from "../../supabase/supabaseClient";
 
-// ====== MULTILINGUAL TEXT KEYS ======
+// Helper for short string (chỉ dùng cho description)
+const shortText = (text: string, max: number = 13) =>
+  text && text.length > max ? text.slice(0, max) + "..." : text;
+
+// MarqueeText cho title (có hiệu ứng trôi)
+const MarqueeText = ({
+  text,
+  style,
+  width,
+  duration = 6000,
+  numberOfLines = 1,
+}: {
+  text: string;
+  style?: any;
+  width: number;
+  duration?: number;
+  numberOfLines?: number;
+}) => {
+  const [shouldScroll, setShouldScroll] = useState(false);
+  const animatedValue = useRef(new Animated.Value(0)).current;
+  const textRef = useRef<Text>(null);
+  const [textWidth, setTextWidth] = useState(0);
+
+  useEffect(() => {
+    if (textWidth > width) {
+      setShouldScroll(true);
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(animatedValue, {
+            toValue: -textWidth + width - 10,
+            duration: duration,
+            useNativeDriver: true,
+            delay: 800,
+          }),
+          Animated.timing(animatedValue, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true,
+            delay: 1000,
+          }),
+        ]),
+      ).start();
+    } else {
+      setShouldScroll(false);
+      animatedValue.setValue(0);
+    }
+  }, [textWidth, width, text, duration, animatedValue]);
+
+  return (
+    <View style={{ width, overflow: "hidden", flexDirection: "row" }}>
+      <Animated.Text
+        ref={textRef}
+        style={[
+          style,
+          shouldScroll && {
+            transform: [{ translateX: animatedValue }],
+            minWidth: textWidth,
+          },
+        ]}
+        numberOfLines={numberOfLines}
+        ellipsizeMode="tail"
+        onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
+      >
+        {text}
+      </Animated.Text>
+    </View>
+  );
+};
+
 const TEXT = {
   your_card_sets: { vi: "Bộ Thẻ Của Bạn", en: "Your Card Sets" },
   search_placeholder: { vi: "Tìm bộ thẻ", en: "Search card sets" },
@@ -47,9 +114,7 @@ const TEXT = {
   },
   card_set_name: { vi: "Tên bộ thẻ", en: "Card Set Name" },
   card_set_desc: { vi: "Mô tả", en: "Description" },
-  category: { vi: "Danh mục", en: "Category" },
   filter: { vi: "Bộ lọc", en: "Filter" },
-  categories: { vi: "Danh mục", en: "Categories" },
   clear_filter: { vi: "Xóa lọc", en: "Clear filter" },
   apply: { vi: "Áp dụng", en: "Apply" },
   title_az: { vi: "Tên A-Z", en: "Title A-Z" },
@@ -69,84 +134,12 @@ const TEXT = {
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
-const categories = [
-  {
-    id: "1",
-    title: "Ngôn ngữ",
-    color: "#E8F1FF",
-    image: require("../../assets/images/avatar.png"),
-  },
-  {
-    id: "2",
-    title: "Mỹ thuật",
-    color: "#FFF4E4",
-    image: require("../../assets/images/avatar.png"),
-  },
-  {
-    id: "3",
-    title: "Lập trình",
-    color: "#E8F1FF",
-    image: require("../../assets/images/avatar.png"),
-  },
-  {
-    id: "4",
-    title: "Âm nhạc",
-    color: "#FFF4E4",
-    image: require("../../assets/images/avatar.png"),
-  },
-];
-
-const initialCardSets = [
-  {
-    id: "1",
-    title: "IELTS Vocabulary Mastery",
-    author: "Huy Nguyen",
-    totalCards: 150,
-    image: require("../../assets/images/avatar.png"),
-    description: "Bộ từ vựng IELTS đầy đủ.",
-    category: "Ngôn ngữ",
-    isSaved: false,
-    createdAt: new Date("2024-06-01"),
-  },
-  {
-    id: "2",
-    title: "200 Kanji N5",
-    author: "Huy Nguyen",
-    totalCards: 200,
-    image: require("../../assets/images/avatar.png"),
-    description: "200 chữ Kanji N5 cơ bản.",
-    category: "Ngôn ngữ",
-    isSaved: true,
-    createdAt: new Date("2025-01-25"),
-  },
-  {
-    id: "3",
-    title: "Tiếng Anh giao tiếp",
-    author: "Huy Nguyen",
-    totalCards: 90,
-    image: require("../../assets/images/avatar.png"),
-    description: "Cụm từ thông dụng giao tiếp.",
-    category: "Ngôn ngữ",
-    isSaved: false,
-    createdAt: new Date("2024-12-12"),
-  },
-];
-
-const filterCategories = [
-  "Ngôn ngữ",
-  "Mỹ thuật",
-  "Lập trình",
-  "Âm nhạc",
-  "Toán học",
-];
-
 export default function Card() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { darkMode } = useDarkMode();
   const theme = darkMode ? darkTheme : lightTheme;
   const { lang } = useLanguage();
 
-  // Cập nhật theo ngôn ngữ động
   const TABS = [TEXT.tab_all[lang], TEXT.tab_mine[lang], TEXT.tab_saved[lang]];
   const sortModes = [
     { label: TEXT.title_az[lang], value: "titleAsc" },
@@ -155,50 +148,127 @@ export default function Card() {
   ];
 
   const [selectedTab, setSelectedTab] = useState(TABS[0]);
-  const [filterVisible, setFilterVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [editModal, setEditModal] = useState({ visible: false, cardSetId: "" });
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Filter modal state
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchText, setSearchText] = useState("");
   const [sortMode, setSortMode] = useState("latest");
   const [refreshing, setRefreshing] = useState(false);
-
-  // Fake loading/skeleton
   const [loading, setLoading] = useState(true);
 
-  // Card sets state
-  const [cardSets, setCardSets] = useState(initialCardSets);
+  const [cardSets, setCardSets] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
 
-  // Animated overlay & content
   const overlayAnim = useRef(new Animated.Value(0)).current;
   const contentAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
-  // Add card set modal state
   const [newCardSet, setNewCardSet] = useState({
     title: "",
     description: "",
-    category: filterCategories[0],
   });
 
-  // Edit card set state
   const [editCardSet, setEditCardSet] = useState({
     title: "",
     description: "",
-    category: "",
     id: "",
   });
 
-  useEffect(() => {
+  // Fetch user & decks, username
+  const fetchData = async () => {
     setLoading(true);
-    const t = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(t);
-  }, []);
+    try {
+      const {
+        data: { user: authUser },
+        error: userErr,
+      } = await supabase.auth.getUser();
+      if (userErr) throw new Error(userErr.message);
+      if (!authUser) {
+        setLoading(false);
+        Alert.alert("Lỗi xác thực", "Không thể lấy thông tin người dùng!");
+        console.error("Không thể lấy thông tin người dùng!");
+        return;
+      }
+      setUser(authUser);
+      // Fetch decks, với users:users(username) để lấy username tác giả
+      const { data: decksData, error: decksError } = await supabase
+        .from("decks")
+        .select(
+          "id, title, description, created_at, user_id, users:users(username)",
+        )
+        .eq("user_id", authUser.id)
+        .order("created_at", { ascending: false });
+      if (decksError) throw new Error(decksError.message);
+
+      // Fetch card count cho mỗi deck
+      let decksWithCount = await Promise.all(
+        (decksData || []).map(async (deck) => {
+          const { count, error: cardsError } = await supabase
+            .from("cards")
+            .select("id", { count: "exact", head: true })
+            .eq("deck_id", deck.id);
+          if (cardsError) {
+            Alert.alert("Lỗi lấy số thẻ", cardsError.message);
+            console.error("Lỗi lấy số thẻ:", cardsError);
+          }
+          return {
+            id: String(deck.id),
+            title: deck.title,
+            username:
+              (deck.users && typeof deck.users === "object"
+                ? deck.users.username
+                : "") ?? "",
+            totalCards: count || 0,
+            image: require("../../assets/images/avatar.png"),
+            description: deck.description,
+            isSaved: false,
+            createdAt: deck.created_at ? new Date(deck.created_at) : new Date(),
+            user_id: deck.user_id,
+          };
+        }),
+      );
+      setCardSets(decksWithCount);
+
+      // Log liên kết cardSets
+      console.log("Fetched cardSets:");
+      decksWithCount.forEach((cs) =>
+        console.log(
+          `deck_id=${cs.id}, user_id=${cs.user_id}, username=${cs.username}, title=${cs.title}, createdAt=${cs.createdAt}`,
+        ),
+      );
+    } catch (err: any) {
+      Alert.alert(
+        "Lỗi hệ thống",
+        err?.message || "Đã xảy ra lỗi không xác định",
+      );
+      console.error("Lỗi hệ thống:", err);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
-    if (filterVisible) {
+    fetchData();
+  }, []);
+
+  // Log lại mỗi khi cardSets thay đổi
+  useEffect(() => {
+    if (cardSets?.length) {
+      console.log("cardSets state updated:");
+      cardSets.forEach((cs) =>
+        console.log(
+          `deck_id=${cs.id}, user_id=${cs.user_id}, username=${cs.username}, title=${cs.title}, createdAt=${cs.createdAt}`,
+        ),
+      );
+    }
+  }, [cardSets]);
+
+  useEffect(() => {
+    setSelectedTab(TABS[0]);
+  }, [lang]);
+
+  // Modal animation
+  useEffect(() => {
+    if (addModalVisible || editModal.visible) {
       Animated.parallel([
         Animated.timing(overlayAnim, {
           toValue: 1,
@@ -225,28 +295,28 @@ export default function Card() {
         }),
       ]).start();
     }
-  }, [filterVisible, SCREEN_HEIGHT, overlayAnim, contentAnim]);
+  }, [
+    addModalVisible,
+    editModal.visible,
+    SCREEN_HEIGHT,
+    overlayAnim,
+    contentAnim,
+  ]);
 
-  // Lọc bộ thẻ dựa trên tab và tìm kiếm
+  // Filter cardSets
   const filterCardSets = () => {
     let result = [...cardSets];
     if (selectedTab === TEXT.tab_mine[lang]) {
-      result = result.filter((set) => set.author === "Huy Nguyen");
+      result = result.filter((set) => set.user_id === user?.id);
     }
     if (selectedTab === TEXT.tab_saved[lang]) {
       result = result.filter((set) => set.isSaved);
-    }
-    if (selectedCategories.length > 0) {
-      result = result.filter((set) =>
-        selectedCategories.includes(set.category),
-      );
     }
     if (searchText.trim() !== "") {
       result = result.filter((set) =>
         set.title.toLowerCase().includes(searchText.toLowerCase()),
       );
     }
-    // Sắp xếp
     if (sortMode === "titleAsc") {
       result = result.sort((a, b) => a.title.localeCompare(b.title));
     } else if (sortMode === "mostCards") {
@@ -260,54 +330,47 @@ export default function Card() {
     return result;
   };
 
-  // Toggle category selection in filter modal
-  const toggleCategory = (cat: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
-    );
-  };
-
-  // Clear filter
-  const clearFilter = () => {
-    setSelectedCategories([]);
-    setSearchText("");
-  };
-
-  // Pull to refresh
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 700);
+    await fetchData();
+    setRefreshing(false);
   };
 
-  // Thêm bộ thẻ mới
-  const handleAddCardSet = () => {
+  // Sau khi thêm mới, luôn gọi fetchData lại để đảm bảo đồng bộ DB/state
+  const handleAddCardSet = async () => {
     if (!newCardSet.title.trim()) {
       Alert.alert(TEXT.info_missing[lang], TEXT.card_set_name_required[lang]);
       return;
     }
-    setCardSets((prev) => [
-      {
-        id: (Math.random() * 100000).toFixed(0),
-        title: newCardSet.title,
-        author: "Huy Nguyen",
-        totalCards: 0,
-        image: require("../../assets/images/avatar.png"),
-        description: newCardSet.description,
-        category: newCardSet.category,
-        isSaved: false,
-        createdAt: new Date(),
-      },
-      ...prev,
-    ]);
-    setNewCardSet({
-      title: "",
-      description: "",
-      category: filterCategories[0],
-    });
-    setAddModalVisible(false);
+    try {
+      const { data, error } = await supabase
+        .from("decks")
+        .insert([
+          {
+            title: newCardSet.title,
+            description: newCardSet.description,
+            user_id: user.id,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+
+      setNewCardSet({ title: "", description: "" });
+      setAddModalVisible(false);
+
+      // Fetch lại toàn bộ decks sau khi thêm
+      await fetchData();
+    } catch (err: any) {
+      Alert.alert(
+        "Lỗi thêm bộ thẻ",
+        err?.message || "Đã xảy ra lỗi khi thêm bộ thẻ",
+      );
+      console.error("Lỗi thêm bộ thẻ:", err);
+    }
   };
 
-  // Xoá bộ thẻ
   const handleDeleteCardSet = (id: string) => {
     setDeletingId(id);
     Alert.alert(
@@ -318,8 +381,23 @@ export default function Card() {
         {
           text: TEXT.delete[lang],
           style: "destructive",
-          onPress: () => {
-            setCardSets((prev) => prev.filter((c) => c.id !== id));
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from("decks")
+                .delete()
+                .eq("id", id);
+              if (error) throw new Error(error.message);
+
+              // Fetch lại toàn bộ decks sau khi xoá
+              await fetchData();
+            } catch (err: any) {
+              Alert.alert(
+                "Lỗi xoá bộ thẻ",
+                err?.message || "Không thể xoá bộ thẻ",
+              );
+              console.error("Lỗi xoá bộ thẻ:", err);
+            }
             setDeletingId(null);
           },
         },
@@ -327,44 +405,42 @@ export default function Card() {
     );
   };
 
-  // Lưu/bỏ lưu bộ thẻ
   const toggleSaveCardSet = (id: string) => {
     setCardSets((prev) =>
       prev.map((c) => (c.id === id ? { ...c, isSaved: !c.isSaved } : c)),
     );
   };
 
-  // Sửa bộ thẻ
   const openEditModal = (cardSet: any) => {
     setEditCardSet({
       title: cardSet.title,
       description: cardSet.description,
-      category: cardSet.category,
       id: cardSet.id,
     });
     setEditModal({ visible: true, cardSetId: cardSet.id });
   };
-  const handleSaveEditCardSet = () => {
-    setCardSets((prev) =>
-      prev.map((c) =>
-        c.id === editCardSet.id
-          ? {
-              ...c,
-              title: editCardSet.title,
-              description: editCardSet.description,
-              category: editCardSet.category,
-            }
-          : c,
-      ),
-    );
-    setEditModal({ visible: false, cardSetId: "" });
+
+  const handleSaveEditCardSet = async () => {
+    try {
+      const { error } = await supabase
+        .from("decks")
+        .update({
+          title: editCardSet.title,
+          description: editCardSet.description,
+        })
+        .eq("id", editCardSet.id);
+      if (error) throw new Error(error.message);
+
+      setEditModal({ visible: false, cardSetId: "" });
+      // Fetch lại toàn bộ decks sau khi sửa
+      await fetchData();
+    } catch (err: any) {
+      Alert.alert("Lỗi cập nhật", err?.message || "Không thể cập nhật bộ thẻ");
+      console.error("Lỗi cập nhật bộ thẻ:", err);
+    }
   };
 
-  // Khi đổi ngôn ngữ thì reset tab về tab đầu tiên (tránh lỗi không khớp)
-  useEffect(() => {
-    setSelectedTab(TABS[0]);
-  }, [lang]);
-
+  // ====== UI Render ======
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
@@ -381,7 +457,6 @@ export default function Card() {
           />
         </TouchableOpacity>
       </View>
-
       {/* Search bar + sort */}
       <View style={[styles.searchRow, { backgroundColor: theme.card }]}>
         <Ionicons
@@ -397,13 +472,6 @@ export default function Card() {
           value={searchText}
           onChangeText={setSearchText}
         />
-        <TouchableOpacity
-          style={styles.filterBtn}
-          onPress={() => setFilterVisible(true)}
-        >
-          <Ionicons name="options" size={scale(20)} color={theme.subText} />
-        </TouchableOpacity>
-        {/* Sort */}
         <TouchableOpacity
           style={styles.sortBtn}
           onPress={() => {
@@ -428,43 +496,6 @@ export default function Card() {
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* Category Cards */}
-      <FlatList
-        data={categories}
-        horizontal
-        keyExtractor={(item) => item.id}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingLeft: scale(20),
-          paddingBottom: 0,
-          flexGrow: 1,
-        }}
-        style={{ marginBottom: scale(8) }}
-        renderItem={({ item: cat }) => (
-          <TouchableOpacity
-            style={[
-              styles.categoryCard,
-              {
-                backgroundColor: darkMode ? theme.section : cat.color,
-              },
-            ]}
-            activeOpacity={0.8}
-          >
-            {cat.image && (
-              <Image
-                source={cat.image}
-                style={styles.categoryImage}
-                resizeMode="contain"
-              />
-            )}
-            <Text style={[styles.categoryTitle, { color: theme.primary }]}>
-              {cat.title}
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
-
       {/* Filter Tabs */}
       <View style={styles.tabsRow}>
         {TABS.map((tab) => (
@@ -489,7 +520,6 @@ export default function Card() {
           </TouchableOpacity>
         ))}
       </View>
-
       {/* Card Set List */}
       <View style={{ flex: 1 }}>
         {loading ? (
@@ -523,7 +553,9 @@ export default function Card() {
                       shadowColor: theme.subText,
                     },
                   ]}
-                  onPress={() => navigation.navigate("CardDetail")}
+                  onPress={() =>
+                    navigation.navigate("CardDetail", { deckId: item.id })
+                  }
                   activeOpacity={0.8}
                 >
                   <View
@@ -539,8 +571,24 @@ export default function Card() {
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>
-                      {item.title}
+                    <MarqueeText
+                      text={item.title}
+                      style={[styles.cardTitle, { color: theme.text }]}
+                      width={SCREEN_WIDTH - scale(180)}
+                      duration={5500}
+                    />
+                    <Text
+                      style={[
+                        styles.cardDescription,
+                        {
+                          color: theme.subText,
+                          width: SCREEN_WIDTH - scale(180),
+                        },
+                      ]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {shortText(item.description || "", 13)}
                     </Text>
                     <View
                       style={{
@@ -558,7 +606,9 @@ export default function Card() {
                         style={[styles.cardAuthor, { color: theme.subText }]}
                       >
                         {" "}
-                        {item.author}
+                        {item.username?.length > 13
+                          ? item.username.slice(0, 13) + "..."
+                          : item.username}
                       </Text>
                     </View>
                     <View
@@ -658,7 +708,6 @@ export default function Card() {
           />
         )}
       </View>
-
       {/* Floating Action Button */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: theme.primary }]}
@@ -666,14 +715,23 @@ export default function Card() {
       >
         <Ionicons name="add" size={scale(32)} color="#fff" />
       </TouchableOpacity>
-
       {/* Add CardSet Modal */}
       <Modal visible={addModalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View
             style={[styles.modalContent, { backgroundColor: theme.section }]}
           >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
+            <Text
+              style={[
+                styles.modalTitle,
+                {
+                  color: theme.text,
+                  fontSize: scale(22),
+                  fontWeight: "700",
+                  marginBottom: scale(10),
+                },
+              ]}
+            >
               {TEXT.create_card_set[lang]}
             </Text>
             <TextInput
@@ -706,44 +764,6 @@ export default function Card() {
                 setNewCardSet((c) => ({ ...c, description: t }))
               }
             />
-            <Text
-              style={{
-                marginBottom: scale(7),
-                marginTop: scale(7),
-                color: theme.text,
-              }}
-            >
-              {TEXT.category[lang]}
-            </Text>
-            <FlatList
-              horizontal
-              data={filterCategories}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.chip,
-                    newCardSet.category === item && styles.chipActive,
-                    newCardSet.category === item && {
-                      backgroundColor: theme.primary,
-                    },
-                  ]}
-                  onPress={() =>
-                    setNewCardSet((c) => ({ ...c, category: item }))
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      newCardSet.category === item && styles.chipTextActive,
-                      newCardSet.category === item && { color: "#fff" },
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            />
             <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: theme.card }]}
@@ -767,7 +787,17 @@ export default function Card() {
           <View
             style={[styles.modalContent, { backgroundColor: theme.section }]}
           >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
+            <Text
+              style={[
+                styles.modalTitle,
+                {
+                  color: theme.text,
+                  fontSize: scale(22),
+                  fontWeight: "700",
+                  marginBottom: scale(10),
+                },
+              ]}
+            >
               {TEXT.edit_card_set[lang]}
             </Text>
             <TextInput
@@ -800,44 +830,6 @@ export default function Card() {
                 setEditCardSet((c) => ({ ...c, description: t }))
               }
             />
-            <Text
-              style={{
-                marginBottom: scale(7),
-                marginTop: scale(7),
-                color: theme.text,
-              }}
-            >
-              {TEXT.category[lang]}
-            </Text>
-            <FlatList
-              horizontal
-              data={filterCategories}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.chip,
-                    editCardSet.category === item && styles.chipActive,
-                    editCardSet.category === item && {
-                      backgroundColor: theme.primary,
-                    },
-                  ]}
-                  onPress={() =>
-                    setEditCardSet((c) => ({ ...c, category: item }))
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      editCardSet.category === item && styles.chipTextActive,
-                      editCardSet.category === item && { color: "#fff" },
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            />
             <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: theme.card }]}
@@ -853,97 +845,6 @@ export default function Card() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
-
-      {/* Filter Modal with animated overlay and slide up content */}
-      <Modal
-        visible={filterVisible}
-        transparent
-        animationType="none"
-        onRequestClose={() => setFilterVisible(false)}
-      >
-        <View style={styles.modalRoot}>
-          {/* Overlay */}
-          <TouchableWithoutFeedback onPress={() => setFilterVisible(false)}>
-            <Animated.View
-              pointerEvents={filterVisible ? "auto" : "none"}
-              style={[styles.modalOverlay, { opacity: overlayAnim }]}
-            />
-          </TouchableWithoutFeedback>
-          {/* Content */}
-          <Animated.View
-            style={[
-              styles.modalContainer,
-              {
-                transform: [{ translateY: contentAnim }],
-                backgroundColor: theme.section,
-              },
-            ]}
-          >
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setFilterVisible(false)}>
-                <Ionicons name="close" size={scale(28)} color={theme.text} />
-              </TouchableOpacity>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>
-                {TEXT.filter[lang]}
-              </Text>
-              <View style={{ width: scale(28) }} />
-            </View>
-
-            {/* Categories */}
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              {TEXT.categories[lang]}
-            </Text>
-            <View style={styles.rowWrap}>
-              {filterCategories.map((cat) => (
-                <Pressable
-                  key={cat}
-                  style={[
-                    styles.chip,
-                    selectedCategories.includes(cat) && styles.chipActive,
-                    selectedCategories.includes(cat) && {
-                      backgroundColor: theme.primary,
-                    },
-                  ]}
-                  onPress={() => toggleCategory(cat)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      selectedCategories.includes(cat) && styles.chipTextActive,
-                      selectedCategories.includes(cat) && { color: "#fff" },
-                    ]}
-                  >
-                    {cat}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-
-            {/* Buttons */}
-            <View style={styles.btnRow}>
-              <TouchableOpacity
-                style={[
-                  styles.clearBtn,
-                  { borderColor: theme.primary, backgroundColor: theme.card },
-                ]}
-                onPress={clearFilter}
-              >
-                <Text style={[styles.btnText, { color: theme.primary }]}>
-                  {TEXT.clear_filter[lang]}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.applyBtn, { backgroundColor: theme.primary }]}
-                onPress={() => setFilterVisible(false)}
-              >
-                <Text style={[styles.btnText, { color: "#fff" }]}>
-                  {TEXT.apply[lang]}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -982,40 +883,16 @@ const styles = StyleSheet.create({
     marginLeft: scale(6),
     backgroundColor: "transparent",
   },
-  filterBtn: { padding: scale(6), marginLeft: scale(10) },
   sortBtn: {
     flexDirection: "row",
     alignItems: "center",
     marginLeft: scale(8),
     padding: scale(2),
   },
-  categoriesRow: {
-    marginHorizontal: scale(24),
-  },
-  categoryCard: {
-    width: scale(140),
-    height: scale(90),
-    borderRadius: scale(16),
-    marginRight: scale(14),
-    alignItems: "flex-start",
-    justifyContent: "flex-end",
-    padding: scale(14),
-    overflow: "hidden",
-  },
-  categoryImage: {
-    position: "absolute",
-    top: scale(4),
-    right: 0,
-    width: scale(80),
-    height: scale(80),
-    opacity: 0.95,
-  },
-  categoryTitle: { fontSize: scale(15), fontWeight: "bold" },
   tabsRow: {
     flexDirection: "row",
     marginLeft: scale(24),
     marginBottom: scale(10),
-    marginTop: scale(-400),
     alignItems: "center",
   },
   tab: {
@@ -1060,14 +937,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#D9DBE9",
   },
   cardTitle: { fontSize: scale(17), fontWeight: "bold" },
+  cardDescription: { fontSize: scale(13), color: "#888", marginTop: scale(2) },
   cardAuthor: { fontSize: scale(13), marginLeft: scale(2) },
   cardTotalCards: {
     fontSize: scale(14),
     marginLeft: scale(2),
     fontWeight: "bold",
   },
-  // Modal & Overlay
-  modalRoot: { flex: 1, justifyContent: "flex-end" },
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(40,40,50,0.22)",
@@ -1075,60 +951,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  modalContainer: {
-    borderTopLeftRadius: scale(32),
-    borderTopRightRadius: scale(32),
-    paddingVertical: scale(24),
-    paddingHorizontal: scale(20),
-    minHeight: SCREEN_HEIGHT * 0.68,
-    zIndex: 2,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: scale(16),
-  },
-  modalTitle: { fontSize: scale(22), fontWeight: "700" },
-  sectionTitle: {
-    fontSize: scale(17),
-    fontWeight: "600",
-    marginVertical: scale(10),
-  },
-  rowWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: scale(10),
-    marginBottom: scale(8),
-  },
-  chip: {
-    backgroundColor: "#F4F4FC",
-    borderRadius: scale(10),
-    paddingHorizontal: scale(16),
-    paddingVertical: scale(8),
-    margin: scale(4),
-  },
-  chipActive: {},
-  chipText: { fontWeight: "500", fontSize: scale(15) },
-  chipTextActive: {},
-  btnRow: {
-    flexDirection: "row",
-    marginTop: scale(18),
-    marginBottom: scale(10),
-    justifyContent: "space-between",
-  },
-  clearBtn: {
-    borderWidth: 1,
-    borderRadius: scale(12),
-    paddingVertical: scale(13),
-    paddingHorizontal: scale(30),
-  },
-  applyBtn: {
-    borderRadius: scale(12),
-    paddingVertical: scale(13),
-    paddingHorizontal: scale(30),
-  },
-  btnText: { fontSize: scale(17), fontWeight: "600" },
   modalContent: {
     borderRadius: scale(18),
     padding: scale(22),
@@ -1137,6 +959,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.11,
     shadowRadius: scale(10),
     elevation: 5,
+  },
+  modalTitle: {
+    fontSize: scale(22),
+    fontWeight: "700",
+    marginBottom: scale(10),
   },
   input: {
     borderWidth: 1,

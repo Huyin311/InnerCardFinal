@@ -28,13 +28,14 @@ const scale = (size: number) => {
   const ratio = SCREEN_WIDTH / baseWidth;
   return clamp(size * ratio, size * minScale, size * maxScale);
 };
-// ----------
 
 type Props = {
   navigation: StackNavigationProp<RootStackParamList, "Signup">;
 };
 
 export default function SignupForm({ navigation }: Props) {
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordAgain, setPasswordAgain] = useState("");
@@ -42,7 +43,7 @@ export default function SignupForm({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
-    if (!email || !password || !passwordAgain) {
+    if (!fullName || !username || !email || !password || !passwordAgain) {
       Alert.alert("Error", "Please fill all fields.");
       return;
     }
@@ -51,31 +52,106 @@ export default function SignupForm({ navigation }: Props) {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: "https://your-app-domain.com/verified", // đổi thành domain app bạn nếu muốn
-      },
-    });
-    setLoading(false);
-    if (error) {
-      Alert.alert("Sign up failed", error.message);
-      return;
-    }
-    Alert.alert(
-      "Check your email",
-      "We have sent a confirmation email. Please confirm to activate your account.",
-      [
+
+    try {
+      // 1. Đăng ký với Supabase Auth (KHÔNG cần truyền emailRedirectTo!)
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error("Auth signUp error:", error);
+        setLoading(false);
+        Alert.alert(
+          "Sign up failed",
+          error.message || "Unknown error during Auth signUp.",
+        );
+        return;
+      }
+      if (!data?.user?.id) {
+        console.error("No user id returned from Supabase Auth:", data);
+        setLoading(false);
+        Alert.alert(
+          "Sign up failed",
+          "No user id returned from Supabase Auth.",
+        );
+        return;
+      }
+
+      // 2. Lưu thông tin vào bảng users (id là uuid!)
+      const userId = data.user.id;
+
+      // Kiểm tra username đã tồn tại chưa để báo lỗi đẹp
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("username", username)
+        .single();
+
+      if (existingUser) {
+        setLoading(false);
+        Alert.alert(
+          "Sign up failed",
+          "Username already exists. Please choose another one.",
+        );
+        return;
+      }
+
+      const { error: profileError } = await supabase.from("users").insert([
         {
-          text: "OK",
-          onPress: () => navigation.replace("Login"),
+          id: userId,
+          full_name: fullName,
+          username: username,
+          email: email,
         },
-      ],
-    );
-    setEmail("");
-    setPassword("");
-    setPasswordAgain("");
+      ]);
+      if (profileError) {
+        console.error("Insert profile error:", profileError);
+        setLoading(false);
+        if (
+          profileError.code === "23505" &&
+          profileError.message?.includes("users_username_key")
+        ) {
+          Alert.alert(
+            "Sign up failed",
+            "Username already exists. Please choose another one.",
+          );
+        } else {
+          Alert.alert(
+            "Sign up failed",
+            "Could not save profile: " +
+              (profileError.message || "Unknown insert error."),
+          );
+        }
+        return;
+      }
+
+      setLoading(false);
+      Alert.alert(
+        "Check your email",
+        "We have sent a confirmation email. Please confirm to activate your account.",
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.replace("Login"),
+          },
+        ],
+      );
+      setFullName("");
+      setUsername("");
+      setEmail("");
+      setPassword("");
+      setPasswordAgain("");
+    } catch (err) {
+      setLoading(false);
+      console.error("Unexpected signup error:", err);
+      Alert.alert(
+        "Sign up failed",
+        "Unexpected error: " +
+          (err instanceof Error ? err.message : JSON.stringify(err)),
+      );
+    }
   };
 
   return (
@@ -87,6 +163,22 @@ export default function SignupForm({ navigation }: Props) {
       <Text style={styles.subtitle}>
         Enter your details below & free sign up
       </Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Full Name"
+        placeholderTextColor={Colors.light.icon}
+        value={fullName}
+        onChangeText={setFullName}
+        autoCapitalize="words"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Username"
+        placeholderTextColor={Colors.light.icon}
+        value={username}
+        onChangeText={setUsername}
+        autoCapitalize="none"
+      />
       <TextInput
         style={styles.input}
         placeholder="Your Email"
@@ -136,7 +228,7 @@ export default function SignupForm({ navigation }: Props) {
       <View style={styles.checkRow}>
         <View style={styles.checkbox} />
         <Text style={styles.checkLabel}>
-          By creating an account you have to agree with our them & condition.
+          By creating an account you have to agree with our term & condition.
         </Text>
       </View>
       <View style={styles.row}>
@@ -148,8 +240,6 @@ export default function SignupForm({ navigation }: Props) {
     </KeyboardAvoidingView>
   );
 }
-
-// ... giữ nguyên phần styles của bạn ...
 
 const CARD_WIDTH = clamp(Math.min(SCREEN_WIDTH * 0.92, 410), 320, 500);
 

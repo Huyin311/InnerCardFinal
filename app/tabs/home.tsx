@@ -1,41 +1,35 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Animated,
   TouchableOpacity,
-  Image,
-  Platform,
-  StatusBar,
   TextInput,
   Modal,
   Alert,
   FlatList,
-  ScrollView,
   Dimensions,
+  ActivityIndicator,
+  Platform,
+  StatusBar,
 } from "react-native";
 import { useDarkMode } from "../DarkModeContext";
 import { useLanguage } from "../LanguageContext";
 import { lightTheme, darkTheme } from "../theme";
 import CustomTabBar from "../../components/CustomTabBar";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "../../supabase/supabaseClient";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
-// Đa ngữ động
 const TEXT = {
   hi: { vi: "Xin chào", en: "Hi" },
   letsLearn: { vi: "Cùng bắt đầu học nào", en: "Let's start learning" },
   learnedToday: { vi: "Đã học hôm nay", en: "Learned today" },
   editTarget: { vi: "Sửa mục tiêu", en: "Edit target" },
   learnMin: { vi: "phút", en: "min" },
-  getStarted: { vi: "Bắt đầu", en: "Get Started" },
-  tryNow: { vi: "Thử ngay", en: "Try Now" },
-  invite: { vi: "Mời", en: "Invite" },
-  learningPlan: { vi: "Kế hoạch học", en: "Learning Plan" },
-  reviewedPlan: { vi: "Đã xem lại kế hoạch", en: "Reviewed plan" },
   streak: { vi: "chuỗi ngày", en: "day streak" },
   keepItUp: { vi: "Tiếp tục nhé!", en: "Keep it up!" },
   share: { vi: "Chia sẻ", en: "Share" },
@@ -64,73 +58,31 @@ const TEXT = {
     en: "days in a row! Keep your streak going.",
   },
   close: { vi: "Đóng", en: "Close" },
-  book: { vi: "Học", en: "Learned" },
-  achievement: { vi: "Thành tích", en: "Achievement" },
-  reminder: { vi: "Nhắc nhở", en: "Reminder" },
-  sharedStreak: { vi: "Đã chia sẻ chuỗi ngày!", en: "Shared your streak!" },
-  started: { vi: "Bắt đầu", en: "Started" },
-  practiceSpeaking: { vi: "Luyện nói", en: "Practice Speaking" },
-  challengeFriend: { vi: "Thách đấu bạn bè", en: "Challenge a Friend" },
 };
 
-const user = {
-  name: "Kristin",
-  avatar: require("../../assets/images/avatar.png"),
-};
-
-const learningToday = {
-  learned: 46,
-  target: 60,
-};
-
-const plans = [
-  { name: "Packaging Design", progress: 40, total: 48 },
-  { name: "Product Design", progress: 6, total: 24 },
-];
-
-const recentActivities = [
-  {
-    type: "learned",
-    text: "You completed 10min of English Vocabulary",
-    time: "2m ago",
-    icon: "book",
-  },
-  {
-    type: "achievement",
-    text: "Streak: 7 days! 🎉",
-    time: "1h ago",
-    icon: "star",
-  },
-  {
-    type: "reminder",
-    text: "Review 5 Kanji cards today",
-    time: "3h ago",
-    icon: "alarm",
-  },
-];
+function getLastWord(str: string) {
+  if (!str) return "";
+  const words = str.trim().split(" ");
+  return words[words.length - 1];
+}
 
 export default function HomeScreen() {
   const { darkMode } = useDarkMode();
   const theme = darkMode ? darkTheme : lightTheme;
   const { lang } = useLanguage();
 
-  const suggestions = [
-    {
-      title: TEXT.getStarted[lang],
-      emoji: "🧑‍🎓",
-      btn: TEXT.getStarted[lang],
-    },
-    {
-      title: TEXT.practiceSpeaking[lang],
-      emoji: "🗣️",
-      btn: TEXT.tryNow[lang],
-    },
-    {
-      title: TEXT.challengeFriend[lang],
-      emoji: "🤝",
-      btn: TEXT.invite[lang],
-    },
-  ];
+  const [user, setUser] = useState<any>(null);
+  // target state
+  const [learningToday, setLearningToday] = useState({
+    learned: 0,
+    target: 60,
+  });
+  const [activities, setActivities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [showAddTarget, setShowAddTarget] = useState(false);
+  const [newTarget, setNewTarget] = useState("");
+  const [showStreakDetail, setShowStreakDetail] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const HEADER_MAX_HEIGHT = scale(140);
@@ -139,11 +91,6 @@ export default function HomeScreen() {
   const AVATAR_MAX = scale(48);
   const AVATAR_MIN = scale(40);
   const TITLE_MAX = scale(24);
-
-  const [showAddTarget, setShowAddTarget] = useState(false);
-  const [newTarget, setNewTarget] = useState("");
-  const [activities, setActivities] = useState(recentActivities);
-  const [showStreakDetail, setShowStreakDetail] = useState(false);
 
   const headerHeight = scrollY.interpolate({
     inputRange: [0, scale(48)],
@@ -166,40 +113,169 @@ export default function HomeScreen() {
     extrapolate: "clamp",
   });
 
-  const addActivity = (text: string, type: string) => {
-    setActivities([
-      {
-        text,
-        type,
-        time: "now",
-        icon:
-          type === "learned"
-            ? "book"
-            : type === "achievement"
-              ? "star"
-              : "alarm",
-      },
-      ...activities,
-    ]);
-  };
+  useEffect(() => {
+    const fetchUserData = async () => {
+      setLoading(true);
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
 
-  const handleSaveTarget = () => {
+      if (!authUser) {
+        setLoading(false);
+        return;
+      }
+
+      // Lấy thông tin user
+      const { data: userData } = await supabase
+        .from("users")
+        .select(
+          "id, full_name, username, email, avatar_url, created_at, updated_at",
+        )
+        .eq("id", authUser.id)
+        .single();
+
+      if (!userData) {
+        Alert.alert(
+          "Lỗi dữ liệu",
+          "Không tìm thấy thông tin người dùng trong bảng users!",
+        );
+        setLoading(false);
+        return;
+      }
+
+      setUser({
+        ...userData,
+        avatar: userData.avatar_url
+          ? { uri: userData.avatar_url }
+          : require("../../assets/images/avatar.png"),
+      });
+
+      // Target mặc định (bạn có thể fetch từ db nếu có cột)
+      setLearningToday({ learned: 0, target: 60 });
+
+      // Lấy 20 hoạt động gần nhất của user từ study_histories
+      // Kèm theo tên deck (nếu có)
+      const { data: activitiesData, error } = await supabase
+        .from("study_histories")
+        .select("id, studied_at, result, deck_id, card_id, deck:deck_id(title)")
+        .eq("user_id", authUser.id)
+        .order("studied_at", { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.log("Error fetching activities:", error);
+      }
+
+      setActivities(
+        (activitiesData || []).map((item: any) => ({
+          id: item.id,
+          time: item.studied_at,
+          deck: item.deck?.title || "",
+          result: item.result,
+          card_id: item.card_id,
+        })),
+      );
+
+      setLoading(false);
+    };
+
+    fetchUserData();
+  }, []);
+
+  const handleSaveTarget = async () => {
     if (!newTarget.trim() || isNaN(Number(newTarget))) {
       Alert.alert(TEXT.invalid[lang], TEXT.pleaseEnterValid[lang]);
       return;
     }
-    learningToday.target = Number(newTarget);
+    const newTargetNum = Number(newTarget);
+    setLearningToday((prev) => ({ ...prev, target: newTargetNum }));
     setShowAddTarget(false);
     setNewTarget("");
-    addActivity("Updated daily learning target", "achievement");
+    // Nếu muốn lưu xuống db, thêm lệnh update cho users ở đây nếu đã có cột target
   };
 
   const handleShowStreak = () => setShowStreakDetail(true);
   const handleHideStreak = () => setShowStreakDetail(false);
 
+  if (loading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: theme.background,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
+  const renderAnimatedHeader = () => (
+    <Animated.View
+      style={[
+        styles.header,
+        {
+          height: headerHeight,
+          paddingTop: scale(48),
+          paddingBottom: scale(28),
+          backgroundColor: theme.primary,
+        },
+      ]}
+    >
+      <View style={{ flex: 1, position: "relative", height: scale(56) }}>
+        <Animated.Text
+          style={[
+            styles.headerHi,
+            {
+              fontSize: titleSize,
+              position: "absolute",
+              top: scale(14),
+              left: 0,
+              right: 0,
+              zIndex: 2,
+              color: theme.card,
+            },
+          ]}
+        >
+          {TEXT.hi[lang]}, {getLastWord(user?.full_name) || ""}
+        </Animated.Text>
+        <Animated.Text
+          style={[
+            styles.headerSub,
+            {
+              opacity: subOpacity,
+              position: "absolute",
+              top: scale(44),
+              left: 0,
+              right: 0,
+              zIndex: 1,
+              color: theme.card,
+            },
+          ]}
+        >
+          {TEXT.letsLearn[lang]}
+        </Animated.Text>
+      </View>
+      <Animated.Image
+        source={user?.avatar || require("../../assets/images/avatar.png")}
+        style={[
+          styles.avatar,
+          {
+            width: avatarSize,
+            height: avatarSize,
+            borderRadius: AVATAR_MAX / 2,
+            borderColor: theme.card,
+            backgroundColor: theme.card,
+          },
+        ]}
+      />
+    </Animated.View>
+  );
+
   const renderListHeader = () => (
     <View style={{ paddingBottom: scale(15) }}>
-      {/* Progress card */}
       <View
         style={[
           styles.progressCard,
@@ -235,105 +311,15 @@ export default function HomeScreen() {
               styles.progressBar,
               {
                 backgroundColor: theme.primary,
-                width: `${(learningToday.learned / learningToday.target) * 100}%`,
+                width:
+                  learningToday.target > 0
+                    ? `${(learningToday.learned / learningToday.target) * 100}%`
+                    : "0%",
               },
             ]}
           />
         </View>
       </View>
-
-      {/* Suggestion Cards */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.suggestScroll}
-      >
-        {suggestions.map((item, idx) => (
-          <View
-            style={[
-              styles.suggestCard,
-              { backgroundColor: theme.primary + "14" },
-              idx > 0 && { marginLeft: scale(12) },
-            ]}
-            key={item.title}
-          >
-            <Text style={[styles.suggestTitle, { color: theme.text }]}>
-              {item.title}
-            </Text>
-            <TouchableOpacity
-              style={[styles.suggestBtn, { backgroundColor: theme.primary }]}
-              onPress={() =>
-                addActivity(`${TEXT.started[lang]}: ${item.title}`, "learned")
-              }
-            >
-              <Text style={[styles.suggestBtnText, { color: theme.card }]}>
-                {item.btn}
-              </Text>
-            </TouchableOpacity>
-            <Text style={[styles.suggestImg, { fontSize: scale(54) }]}>
-              {item.emoji}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Learning Plan */}
-      <Text style={[styles.planTitle, { color: theme.text }]}>
-        {TEXT.learningPlan[lang]}
-      </Text>
-      <View
-        style={[
-          styles.planCard,
-          { backgroundColor: theme.card, shadowColor: theme.primary },
-        ]}
-      >
-        {plans.map((plan, idx) => (
-          <View style={styles.planRow} key={plan.name}>
-            <View
-              style={[
-                styles.planProgressCircle,
-                { backgroundColor: theme.card, borderColor: theme.subText },
-              ]}
-            >
-              <View
-                style={[
-                  styles.planProgressFill,
-                  {
-                    backgroundColor: theme.primary,
-                    width: `${(plan.progress / plan.total) * 100}%`,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={[styles.planName, { color: theme.text }]}>
-              {plan.name}
-            </Text>
-            <Text style={[styles.planProgress, { color: theme.subText }]}>
-              <Text style={[styles.planProgressBold, { color: theme.text }]}>
-                {plan.progress}
-              </Text>
-              /{plan.total}
-            </Text>
-            <TouchableOpacity
-              onPress={() =>
-                addActivity(
-                  `${TEXT.reviewedPlan[lang]}: ${plan.name}`,
-                  "learned",
-                )
-              }
-              style={{ marginLeft: scale(10) }}
-            >
-              <Feather
-                name="arrow-right-circle"
-                size={scale(22)}
-                color={theme.primary}
-              />
-            </TouchableOpacity>
-          </View>
-        ))}
-      </View>
-
-      {/* Streak/achievement widget */}
       <View
         style={[
           styles.streakWidget,
@@ -343,14 +329,11 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.streakMain} onPress={handleShowStreak}>
           <Ionicons name="flame" size={scale(28)} color="#FF7F00" />
           <View style={{ marginLeft: scale(10) }}>
-            <Text style={styles.streakDays}>7-{TEXT.streak[lang]}</Text>
+            <Text style={styles.streakDays}>0-{TEXT.streak[lang]}</Text>
             <Text style={styles.streakSub}>{TEXT.keepItUp[lang]}</Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.streakBtn}
-          onPress={() => addActivity(TEXT.sharedStreak[lang], "achievement")}
-        >
+        <TouchableOpacity style={styles.streakBtn}>
           <Ionicons
             name="share-social-outline"
             size={scale(22)}
@@ -367,8 +350,6 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* Recent Activity title */}
       <Text
         style={[styles.planTitle, { marginTop: scale(32), color: theme.text }]}
       >
@@ -377,74 +358,14 @@ export default function HomeScreen() {
     </View>
   );
 
-  const renderAnimatedHeader = () => (
-    <Animated.View
-      style={[
-        styles.header,
-        {
-          height: headerHeight,
-          paddingTop: scale(48),
-          paddingBottom: scale(28),
-          backgroundColor: theme.primary,
-        },
-      ]}
-    >
-      <View style={{ flex: 1, position: "relative", height: scale(56) }}>
-        <Animated.Text
-          style={[
-            styles.headerHi,
-            {
-              fontSize: titleSize,
-              position: "absolute",
-              top: scale(14),
-              left: 0,
-              right: 0,
-              zIndex: 2,
-              color: theme.card,
-            },
-          ]}
-        >
-          {TEXT.hi[lang]}, {user.name}
-        </Animated.Text>
-        <Animated.Text
-          style={[
-            styles.headerSub,
-            {
-              opacity: subOpacity,
-              position: "absolute",
-              top: scale(44),
-              left: 0,
-              right: 0,
-              zIndex: 1,
-              color: theme.card,
-            },
-          ]}
-        >
-          {TEXT.letsLearn[lang]}
-        </Animated.Text>
-      </View>
-      <Animated.Image
-        source={user.avatar}
-        style={[
-          styles.avatar,
-          {
-            width: avatarSize,
-            height: avatarSize,
-            borderRadius: AVATAR_MAX / 2,
-            borderColor: theme.card,
-            backgroundColor: theme.card,
-          },
-        ]}
-      />
-    </Animated.View>
-  );
-
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       {renderAnimatedHeader()}
       <FlatList
         data={activities}
-        keyExtractor={(_, idx) => idx.toString()}
+        keyExtractor={(item, idx) =>
+          item.id ? String(item.id) : idx.toString()
+        }
         ListHeaderComponent={renderListHeader()}
         contentContainerStyle={{
           paddingBottom: scale(134),
@@ -460,27 +381,35 @@ export default function HomeScreen() {
           <View style={styles.activityRow}>
             <Ionicons
               name={
-                item.icon === "book"
-                  ? "book-outline"
-                  : item.icon === "star"
-                    ? "star-outline"
-                    : "alarm-outline"
+                item.result === "correct"
+                  ? "checkmark-circle-outline"
+                  : item.result === "incorrect"
+                    ? "close-circle-outline"
+                    : "help-circle-outline"
               }
               size={scale(20)}
               color={
-                item.type === "learned"
+                item.result === "correct"
                   ? theme.primary
-                  : item.type === "achievement"
-                    ? "#FFD600"
-                    : "#FF7F00"
+                  : item.result === "incorrect"
+                    ? "#FF3B30"
+                    : "#FFD600"
               }
             />
-            <Text style={[styles.activityText, { color: theme.text }]}>
-              {item.text}
-            </Text>
-            <Text style={[styles.activityTime, { color: theme.subText }]}>
-              {item.time}
-            </Text>
+            <View style={{ flex: 1, marginLeft: scale(9) }}>
+              <Text style={[styles.activityText, { color: theme.text }]}>
+                {item.deck ? `Học thẻ trong "${item.deck}"` : "Học thẻ"}
+                {" - "}
+                {item.result === "correct"
+                  ? "Đúng"
+                  : item.result === "incorrect"
+                    ? "Sai"
+                    : "Bỏ qua"}
+              </Text>
+              <Text style={[styles.activityTime, { color: theme.subText }]}>
+                {item.time?.slice(0, 19).replace("T", " ")}
+              </Text>
+            </View>
           </View>
         )}
         ListFooterComponent={
@@ -506,7 +435,6 @@ export default function HomeScreen() {
         }
       />
 
-      {/* Modal chỉnh sửa mục tiêu */}
       <Modal visible={showAddTarget} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
@@ -542,7 +470,6 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* Modal xem chi tiết streak */}
       <Modal visible={showStreakDetail} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View
@@ -563,7 +490,7 @@ export default function HomeScreen() {
                 color: theme.primary,
               }}
             >
-              7-{TEXT.streakDetail[lang]}
+              0-{TEXT.streakDetail[lang]}
             </Text>
             <Text
               style={{
@@ -572,7 +499,7 @@ export default function HomeScreen() {
                 marginBottom: scale(20),
               }}
             >
-              {TEXT.studiedStreak[lang]} 7 {TEXT.daysInARow[lang]}
+              {TEXT.studiedStreak[lang]} 0 {TEXT.daysInARow[lang]}
             </Text>
             <TouchableOpacity
               style={[
@@ -663,88 +590,12 @@ const styles = StyleSheet.create({
     height: scale(6),
     borderRadius: scale(4),
   },
-  suggestScroll: {
-    marginTop: scale(28),
-    paddingLeft: scale(24),
-  },
-  suggestCard: {
-    width: scale(220),
-    borderRadius: scale(16),
-    padding: scale(20),
-    marginRight: scale(12),
-    position: "relative",
-    overflow: "hidden",
-    justifyContent: "flex-start",
-  },
-  suggestTitle: {
-    fontSize: scale(17),
-    fontWeight: "bold",
-    marginBottom: scale(16),
-  },
-  suggestBtn: {
-    paddingVertical: scale(8),
-    paddingHorizontal: scale(18),
-    borderRadius: scale(8),
-    alignSelf: "flex-start",
-    marginBottom: scale(8),
-  },
-  suggestBtnText: {
-    fontWeight: "bold",
-    fontSize: scale(15),
-  },
-  suggestImg: {
-    position: "absolute",
-    right: scale(8),
-    bottom: scale(8),
-  },
   planTitle: {
     fontSize: scale(18),
     fontWeight: "bold",
     marginLeft: scale(24),
     marginTop: scale(34),
     marginBottom: scale(8),
-  },
-  planCard: {
-    marginHorizontal: scale(24),
-    borderRadius: scale(16),
-    paddingVertical: scale(10),
-    paddingHorizontal: scale(14),
-    shadowOpacity: 0.06,
-    shadowRadius: scale(6),
-    elevation: 2,
-  },
-  planRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: scale(8),
-  },
-  planProgressCircle: {
-    width: scale(26),
-    height: scale(26),
-    borderRadius: scale(13),
-    borderWidth: 2,
-    marginRight: scale(14),
-    overflow: "hidden",
-  },
-  planProgressFill: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    height: "100%",
-    borderRadius: scale(13),
-  },
-  planName: {
-    flex: 1,
-    fontSize: scale(15),
-    fontWeight: "500",
-  },
-  planProgress: {
-    fontSize: scale(14),
-    fontWeight: "400",
-  },
-  planProgressBold: {
-    fontWeight: "bold",
-    fontSize: scale(15),
   },
   streakWidget: {
     flexDirection: "row",
@@ -789,12 +640,9 @@ const styles = StyleSheet.create({
     marginHorizontal: scale(24),
   },
   activityText: {
-    flex: 1,
-    marginLeft: scale(9),
     fontSize: scale(15),
   },
   activityTime: {
-    marginLeft: scale(8),
     fontSize: scale(13),
   },
   banner: {

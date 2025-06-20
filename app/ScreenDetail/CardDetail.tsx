@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,18 +13,19 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { useDarkMode } from "../DarkModeContext";
 import { lightTheme, darkTheme } from "../theme";
 import { useLanguage } from "../LanguageContext";
+import { supabase } from "../../supabase/supabaseClient";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
-
 const fallbackImage = require("../../assets/images/avatar.png");
 
 const TEXT = {
@@ -33,7 +34,6 @@ const TEXT = {
   set_description: { vi: "Mô tả bộ thẻ", en: "Set description" },
   card_list: { vi: "Danh sách thẻ", en: "Card List" },
   add_card: { vi: "Thêm thẻ", en: "Add Card" },
-  topic: { vi: "Chủ đề", en: "Topic" },
   illustration: { vi: "Ảnh minh họa", en: "Illustration" },
   auto_suggest: { vi: "Tự động gợi ý", en: "Auto Suggest" },
   auto_loading: { vi: "...", en: "..." },
@@ -69,8 +69,8 @@ const TEXT = {
   },
   card_example: { vi: "Ví dụ (không bắt buộc)", en: "Example (optional)" },
   card_image: {
-    vi: "Link ảnh (tùy chọn, nếu không có sẽ dùng ảnh gợi ý hoặc mặc định)",
-    en: "Image url (optional, will use suggested/default if empty)",
+    vi: "Link ảnh (tùy chọn, nếu không có sẽ dùng ảnh mặc định)",
+    en: "Image url (optional, will use default if empty)",
   },
   illustration_hint: {
     vi: "Ảnh minh họa (có thể sửa hoặc tạo lại)",
@@ -113,70 +113,16 @@ const TEXT = {
   edit_set_modal_title: { vi: "Chỉnh sửa bộ thẻ", en: "Edit Card Set" },
 };
 
-const initialCardSet = {
-  id: "1",
-  name: "IELTS Vocabulary Mastery",
-  price: 0,
-  isOwner: true,
-  cover: fallbackImage,
-  description:
-    "Bộ flashcard giúp bạn hệ thống toàn bộ từ vựng IELTS, chia chủ đề dễ học, kèm mẹo ghi nhớ và ví dụ thực tế.",
-  totalCards: 5,
-  cards: [
-    {
-      id: "1",
-      front: "abandon",
-      back: "từ bỏ",
-      example: "She abandoned the project.",
-      phonetic: "/əˈbæn.dən/",
-      partOfSpeech: "verb",
-      image: "",
-    },
-    {
-      id: "2",
-      front: "benefit",
-      back: "lợi ích",
-      example: "There are many benefits to exercise.",
-      phonetic: "/ˈben.ɪ.fɪt/",
-      partOfSpeech: "noun",
-      image: "",
-    },
-    {
-      id: "3",
-      front: "cautious",
-      back: "thận trọng",
-      example: "He is cautious when investing.",
-      phonetic: "/ˈkɔː.ʃəs/",
-      partOfSpeech: "adjective",
-      image: "",
-    },
-    {
-      id: "4",
-      front: "demand",
-      back: "nhu cầu",
-      example: "There is a high demand for nurses.",
-      phonetic: "/dɪˈmɑːnd/",
-      partOfSpeech: "noun",
-      image: "",
-    },
-    {
-      id: "5",
-      front: "efficient",
-      back: "hiệu quả",
-      example: "The new system is more efficient.",
-      phonetic: "/ɪˈfɪʃ.ənt/",
-      partOfSpeech: "adjective",
-      image: "",
-    },
-  ],
-  topics: [
-    { name: "Education", total: 2, unlocked: true },
-    { name: "Environment", total: 1, unlocked: true },
-    { name: "Health", total: 2, unlocked: true },
-  ],
-};
+async function getCurrentUser() {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  return user;
+}
 
-// Dịch nghĩa tiếng Anh sang tiếng Việt ngắn gọn (Google Translate API free)
+// --- API tự động điền ---
 async function translateToVietnamese(word: string): Promise<string> {
   try {
     const res = await fetch(
@@ -189,7 +135,6 @@ async function translateToVietnamese(word: string): Promise<string> {
   }
 }
 
-// Lấy phiên âm, từ loại, ví dụ, nghĩa Việt từ API
 async function fetchWordData(word: string) {
   try {
     const res = await fetch(
@@ -198,8 +143,7 @@ async function fetchWordData(word: string) {
     const data = await res.json();
     let phonetic = "",
       partOfSpeech = "",
-      example = "",
-      audio = "";
+      example = "";
     if (Array.isArray(data) && data[0]) {
       phonetic =
         data[0].phonetic ||
@@ -213,13 +157,11 @@ async function fetchWordData(word: string) {
           .find((def: any) => def.example)?.example ||
         data[0].meanings?.[0]?.definitions?.[0]?.example ||
         "";
-      audio = data[0].phonetics?.find((p: any) => p.audio)?.audio || "";
     }
     const viMeaning = await translateToVietnamese(word);
     return {
       phonetic,
       partOfSpeech,
-      audio,
       example,
       viMeaning,
     };
@@ -228,7 +170,6 @@ async function fetchWordData(word: string) {
   }
 }
 
-// Lấy ảnh minh họa Pixabay (random trong 3 ảnh đầu)
 async function fetchPixabayImage(word: string) {
   const PIXABAY_API_KEY = "32527145-1448acf0aed3630c8387734cf";
   try {
@@ -250,16 +191,20 @@ async function fetchPixabayImage(word: string) {
 
 export default function CardDetail() {
   const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<{ params: { deckId: number } }, "params">>();
   const { darkMode } = useDarkMode();
   const theme = darkMode ? darkTheme : lightTheme;
   const { lang } = useLanguage();
-  const [cardSet, setCardSet] = useState(initialCardSet);
-  const [editSet, setEditSet] = useState(false);
-  const [editCard, setEditCard] = useState<null | (typeof cardSet.cards)[0]>(
-    null,
-  );
-  const [modalVisible, setModalVisible] = useState(false);
 
+  const [deck, setDeck] = useState<any>(null);
+  const [cards, setCards] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
+
+  // Modal states
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editCard, setEditCard] = useState<any>(null);
+  const [editSet, setEditSet] = useState(false);
   const [newCard, setNewCard] = useState({
     front: "",
     back: "",
@@ -268,140 +213,47 @@ export default function CardDetail() {
     partOfSpeech: "",
     image: "",
   });
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [importing, setImporting] = useState(false);
   const [loadingAuto, setLoadingAuto] = useState(false);
   const [imgPreview, setImgPreview] = useState("");
 
-  const [editName, setEditName] = useState(cardSet.name);
-  const [editDesc, setEditDesc] = useState(cardSet.description);
+  const deckId = route.params?.deckId;
 
-  const [importing, setImporting] = useState(false);
-
-  const isOwner = cardSet.isOwner;
-
-  async function handleBulkImportFromModal() {
-    try {
-      setImporting(true);
-      const res = await DocumentPicker.getDocumentAsync({
-        type: ["text/csv", "application/json", "text/plain"] as any,
-        copyToCacheDirectory: true,
-      });
-      if (res.canceled || !res.assets || !res.assets[0]?.uri) {
-        setImporting(false);
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const { data: deckData } = await supabase
+        .from("decks")
+        .select("*")
+        .eq("id", deckId)
+        .single();
+      if (!deckData) {
+        Alert.alert("Không tìm thấy bộ thẻ");
+        setLoading(false);
         return;
       }
-      const file = res.assets[0];
-      const uri = file.uri;
-      const name = file.name ?? "file";
-      const content = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-      let cards: any[] = [];
-      if (name.endsWith(".json")) {
-        cards = JSON.parse(content);
-      } else {
-        cards = content
-          .split(/\r?\n/)
-          .map((line) => {
-            if (!line.trim()) return null;
-            const [front, back, example, phonetic, partOfSpeech, image] =
-              line.split(",");
-            return front && back
-              ? { front, back, example, phonetic, partOfSpeech, image }
-              : null;
-          })
-          .filter(Boolean);
-      }
-      if (!cards.length) {
-        Alert.alert(TEXT.import_invalid[lang]);
-        setImporting(false);
-        return;
-      }
-      const newCards = cards.map((card) => ({
-        ...card,
-        id: (Math.random() * 100000).toFixed(0),
-      }));
-      setCardSet((prev) => ({
-        ...prev,
-        cards: [...prev.cards, ...newCards],
-        totalCards: prev.totalCards + newCards.length,
-      }));
-      setModalVisible(false);
-      Alert.alert(
-        TEXT.import_success[lang].replace(
-          "{count}",
-          newCards.length.toString(),
-        ),
-      );
-    } catch (err) {
-      Alert.alert(TEXT.import_fail[lang]);
+      setDeck(deckData);
+      setEditName(deckData.title);
+      setEditDesc(deckData.description);
+
+      const { data: cardsData } = await supabase
+        .from("cards")
+        .select("*")
+        .eq("deck_id", deckId)
+        .order("id");
+      setCards(cardsData || []);
+
+      const user = await getCurrentUser();
+      setIsOwner(deckData.user_id === user?.id);
+
+      setLoading(false);
     }
-    setImporting(false);
-  }
+    if (deckId) load();
+  }, [deckId]);
 
-  function handleDeleteCard(cardId: string) {
-    Alert.alert(TEXT.delete_card_confirm[lang], TEXT.delete_card_desc[lang], [
-      { text: TEXT.cancel[lang] },
-      {
-        text: TEXT.delete[lang],
-        style: "destructive",
-        onPress: () => {
-          setCardSet((prev) => ({
-            ...prev,
-            cards: prev.cards.filter((c) => c.id !== cardId),
-            totalCards: prev.totalCards - 1,
-          }));
-        },
-      },
-    ]);
-  }
-
-  function handleSaveEditCard() {
-    if (!editCard) return;
-    setCardSet((prev) => ({
-      ...prev,
-      cards: prev.cards.map((c) => (c.id === editCard.id ? editCard : c)),
-    }));
-    setEditCard(null);
-  }
-
-  async function handleAddCard() {
-    if (!newCard.front.trim() || !newCard.back.trim()) {
-      Alert.alert(TEXT.missing_info[lang], TEXT.missing_info_detail[lang]);
-      return;
-    }
-    setCardSet((prev) => ({
-      ...prev,
-      cards: [
-        ...prev.cards,
-        {
-          ...newCard,
-          id: (Math.random() * 100000).toFixed(0),
-        },
-      ],
-      totalCards: prev.totalCards + 1,
-    }));
-    setNewCard({
-      front: "",
-      back: "",
-      example: "",
-      phonetic: "",
-      partOfSpeech: "",
-      image: "",
-    });
-    setImgPreview("");
-    setModalVisible(false);
-    setLoadingAuto(false);
-  }
-
-  function handleSaveSetInfo() {
-    setCardSet((prev) => ({
-      ...prev,
-      name: editName,
-      description: editDesc,
-    }));
-    setEditSet(false);
-  }
-
+  // Tự động điền
   async function handleAutoFill() {
     if (!newCard.front.trim()) {
       Alert.alert(TEXT.enter_vocab_first[lang]);
@@ -434,28 +286,194 @@ export default function CardDetail() {
     setLoadingAuto(false);
   }
 
-  function handleImageInput(t: string) {
-    setNewCard((c) => ({ ...c, image: t }));
-    setImgPreview(t);
+  // Thêm thẻ mới
+  async function handleAddCard() {
+    if (!newCard.front.trim() || !newCard.back.trim()) {
+      Alert.alert(TEXT.missing_info[lang], TEXT.missing_info_detail[lang]);
+      return;
+    }
+    const { error, data } = await supabase
+      .from("cards")
+      .insert({
+        deck_id: deckId,
+        front_text: newCard.front,
+        back_text: newCard.back,
+        image_url: newCard.image || null,
+        phonetic: newCard.phonetic,
+        part_of_speech: newCard.partOfSpeech,
+        example: newCard.example,
+      })
+      .select()
+      .single();
+    if (error) {
+      Alert.alert("Lỗi", error.message);
+      return;
+    }
+    setCards((prev) => [...prev, data]);
+    setNewCard({
+      front: "",
+      back: "",
+      example: "",
+      phonetic: "",
+      partOfSpeech: "",
+      image: "",
+    });
+    setModalVisible(false);
+    setImgPreview("");
+    setLoadingAuto(false);
   }
+
+  // Xoá thẻ
+  async function handleDeleteCard(cardId: number) {
+    Alert.alert(TEXT.delete_card_confirm[lang], TEXT.delete_card_desc[lang], [
+      { text: TEXT.cancel[lang] },
+      {
+        text: TEXT.delete[lang],
+        style: "destructive",
+        onPress: async () => {
+          const { error } = await supabase
+            .from("cards")
+            .delete()
+            .eq("id", cardId);
+          if (!error) setCards(cards.filter((c) => c.id !== cardId));
+        },
+      },
+    ]);
+  }
+
+  // Sửa thẻ
+  async function handleSaveEditCard() {
+    if (!editCard) return;
+    const { error, data } = await supabase
+      .from("cards")
+      .update({
+        front_text: editCard.front_text,
+        back_text: editCard.back_text,
+        image_url: editCard.image_url,
+        phonetic: editCard.phonetic,
+        part_of_speech: editCard.part_of_speech,
+        example: editCard.example,
+      })
+      .eq("id", editCard.id)
+      .select()
+      .single();
+    if (!error) {
+      setCards(cards.map((c) => (c.id === editCard.id ? data : c)));
+      setEditCard(null);
+    }
+  }
+
+  // Sửa thông tin bộ thẻ
+  async function handleSaveSetInfo() {
+    const { error, data } = await supabase
+      .from("decks")
+      .update({
+        title: editName,
+        description: editDesc,
+      })
+      .eq("id", deckId)
+      .select()
+      .single();
+    if (!error && data) {
+      setDeck(data);
+      setEditSet(false);
+    }
+  }
+
+  // Nhập nhiều thẻ từ file (nếu thiếu ảnh sẽ tự lấy minh họa)
+  async function handleBulkImportFromModal() {
+    try {
+      setImporting(true);
+      const res = await DocumentPicker.getDocumentAsync({
+        type: ["text/csv", "application/json", "text/plain"] as any,
+        copyToCacheDirectory: true,
+      });
+      if (res.canceled || !res.assets || !res.assets[0]?.uri) {
+        setImporting(false);
+        return;
+      }
+      const file = res.assets[0];
+      const uri = file.uri;
+      const name = file.name ?? "file";
+      const content = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      let cardsImported: any[] = [];
+      if (name.endsWith(".json")) {
+        cardsImported = JSON.parse(content);
+      } else {
+        // Duyệt từng dòng, nếu thiếu ảnh thì tự động lấy ảnh từ API
+        cardsImported = await Promise.all(
+          content.split(/\r?\n/).map(async (line) => {
+            if (!line.trim()) return null;
+            const [front, back, example, phonetic, partOfSpeech, image] =
+              line.split(",");
+            if (!front || !back) return null;
+            let image_url = image || "";
+            if (!image_url) {
+              image_url = await fetchPixabayImage(front.trim());
+            }
+            return {
+              front_text: front,
+              back_text: back,
+              example: example || "",
+              phonetic: phonetic || "",
+              part_of_speech: partOfSpeech || "",
+              image_url: image_url || "",
+            };
+          }),
+        );
+        cardsImported = cardsImported.filter(Boolean);
+      }
+      if (!cardsImported.length) {
+        Alert.alert(TEXT.import_invalid[lang]);
+        setImporting(false);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("cards")
+        .insert(cardsImported.map((c) => ({ ...c, deck_id: deckId })))
+        .select();
+      if (!error) setCards((prev) => [...prev, ...(data || [])]);
+      setModalVisible(false);
+      Alert.alert(
+        TEXT.import_success[lang].replace(
+          "{count}",
+          (data?.length || 0).toString(),
+        ),
+      );
+    } catch (err) {
+      Alert.alert(TEXT.import_fail[lang]);
+    }
+    setImporting(false);
+  }
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+  if (!deck) return null;
 
   const renderHeader = () => (
     <View>
       <Text style={[styles.cardSetTitle, { color: theme.text }]}>
-        {cardSet.name}
+        {deck.title}
       </Text>
       <Text style={[styles.subInfo, { color: theme.subText || "#BFC8D6" }]}>
-        {cardSet.totalCards} {TEXT.cards[lang]}
+        {cards.length} {TEXT.cards[lang]}
       </Text>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>
         {TEXT.set_description[lang]}
       </Text>
       <Text style={[styles.description, { color: theme.text }]}>
-        {cardSet.description}
+        {deck.description}
       </Text>
       <View style={styles.sectionHeaderRow}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          {TEXT.card_list[lang]} ({cardSet.totalCards})
+          {TEXT.card_list[lang]} ({cards.length})
         </Text>
         {isOwner && (
           <TouchableOpacity
@@ -475,30 +493,6 @@ export default function CardDetail() {
           </TouchableOpacity>
         )}
       </View>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>
-        {TEXT.topic[lang]}
-      </Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginBottom: scale(24) }}
-      >
-        {cardSet.topics.map((topic, idx) => (
-          <View
-            key={topic.name}
-            style={[styles.topicChip, { backgroundColor: theme.card }]}
-          >
-            <Ionicons
-              name={topic.unlocked ? "lock-open" : "lock-closed"}
-              size={scale(16)}
-              color={topic.unlocked ? theme.primary : "#bfc8d6"}
-            />
-            <Text style={[styles.topicChipText, { color: theme.text }]}>
-              {topic.name} ({topic.total})
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
     </View>
   );
 
@@ -514,13 +508,13 @@ export default function CardDetail() {
           <Ionicons name="arrow-back" size={scale(24)} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>
-          {cardSet.name}
+          {deck.title}
         </Text>
-        <Image source={cardSet.cover} style={styles.headerImage} />
+        <Image source={fallbackImage} style={styles.headerImage} />
       </View>
       <FlatList
-        data={cardSet.cards}
-        keyExtractor={(item) => item.id}
+        data={cards}
+        keyExtractor={(item) => item.id + ""}
         style={[styles.contentBox, { backgroundColor: theme.section }]}
         ListHeaderComponent={renderHeader()}
         renderItem={({ item }) => (
@@ -533,7 +527,9 @@ export default function CardDetail() {
             <View style={{ alignItems: "center", marginRight: scale(14) }}>
               <View pointerEvents="none">
                 <Image
-                  source={item.image ? { uri: item.image } : fallbackImage}
+                  source={
+                    item.image_url ? { uri: item.image_url } : fallbackImage
+                  }
                   style={{
                     width: scale(62),
                     height: scale(62),
@@ -555,16 +551,16 @@ export default function CardDetail() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.flashCardFront, { color: theme.primary }]}>
-                {item.front}{" "}
-                {item.partOfSpeech ? (
-                  <Text style={styles.cardPOS}>({item.partOfSpeech})</Text>
+                {item.front_text}
+                {item.part_of_speech ? (
+                  <Text style={styles.cardPOS}> ({item.part_of_speech})</Text>
                 ) : null}
                 {item.phonetic ? (
                   <Text style={styles.cardPhonetic}> {item.phonetic}</Text>
                 ) : null}
               </Text>
               <Text style={[styles.flashCardBack, { color: theme.text }]}>
-                {item.back}
+                {item.back_text}
               </Text>
               {item.example ? (
                 <Text
@@ -573,10 +569,7 @@ export default function CardDetail() {
                     { color: theme.subText || "#888" },
                   ]}
                 >
-                  <Ionicons name="bulb" size={scale(13)} color="#FFD600" />{" "}
-                  <Text style={{ color: theme.subText || "#888" }}>
-                    {item.example}
-                  </Text>
+                  {item.example}
                 </Text>
               ) : null}
               {isOwner && (
@@ -589,7 +582,17 @@ export default function CardDetail() {
                         borderColor: theme.card,
                       },
                     ]}
-                    onPress={() => setEditCard({ ...item })}
+                    onPress={() =>
+                      setEditCard({
+                        ...item,
+                        image_url: item.image_url || "",
+                        front_text: item.front_text,
+                        back_text: item.back_text,
+                        phonetic: item.phonetic,
+                        part_of_speech: item.part_of_speech,
+                        example: item.example,
+                      })
+                    }
                   >
                     <Feather
                       name="edit-2"
@@ -645,7 +648,7 @@ export default function CardDetail() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.buyBtn, { backgroundColor: theme.primary }]}
-          onPress={() => navigation.navigate("Study" as never)}
+          onPress={() => navigation.navigate("Study", { deckId })}
         >
           <Text
             style={{ color: "#fff", fontWeight: "bold", fontSize: scale(18) }}
@@ -662,7 +665,11 @@ export default function CardDetail() {
             onPress={() => setEditSet(true)}
           >
             <Text
-              style={{ color: "#fff", fontWeight: "bold", fontSize: scale(18) }}
+              style={{
+                color: "#fff",
+                fontWeight: "bold",
+                fontSize: scale(18),
+              }}
             >
               {TEXT.edit_set_action[lang]}
             </Text>
@@ -898,7 +905,7 @@ export default function CardDetail() {
                   placeholder={TEXT.card_image[lang]}
                   placeholderTextColor={theme.subText || "#888"}
                   value={newCard.image}
-                  onChangeText={handleImageInput}
+                  onChangeText={(t) => setNewCard((c) => ({ ...c, image: t }))}
                   returnKeyType="done"
                 />
                 <View
@@ -948,8 +955,10 @@ export default function CardDetail() {
               ]}
               placeholder={TEXT.card_front[lang]}
               placeholderTextColor={theme.subText || "#888"}
-              value={editCard?.front || ""}
-              onChangeText={(t) => setEditCard((c) => c && { ...c, front: t })}
+              value={editCard?.front_text || ""}
+              onChangeText={(t) =>
+                setEditCard((c: any) => c && { ...c, front_text: t })
+              }
             />
             <TextInput
               style={[
@@ -964,7 +973,7 @@ export default function CardDetail() {
               placeholderTextColor={theme.subText || "#888"}
               value={editCard?.phonetic || ""}
               onChangeText={(t) =>
-                setEditCard((c) => c && { ...c, phonetic: t })
+                setEditCard((c: any) => c && { ...c, phonetic: t })
               }
             />
             <TextInput
@@ -978,9 +987,9 @@ export default function CardDetail() {
               ]}
               placeholder={TEXT.card_pos[lang]}
               placeholderTextColor={theme.subText || "#888"}
-              value={editCard?.partOfSpeech || ""}
+              value={editCard?.part_of_speech || ""}
               onChangeText={(t) =>
-                setEditCard((c) => c && { ...c, partOfSpeech: t })
+                setEditCard((c: any) => c && { ...c, part_of_speech: t })
               }
             />
             <TextInput
@@ -994,8 +1003,10 @@ export default function CardDetail() {
               ]}
               placeholder={TEXT.card_back[lang]}
               placeholderTextColor={theme.subText || "#888"}
-              value={editCard?.back || ""}
-              onChangeText={(t) => setEditCard((c) => c && { ...c, back: t })}
+              value={editCard?.back_text || ""}
+              onChangeText={(t) =>
+                setEditCard((c: any) => c && { ...c, back_text: t })
+              }
             />
             <TextInput
               style={[
@@ -1010,7 +1021,7 @@ export default function CardDetail() {
               placeholderTextColor={theme.subText || "#888"}
               value={editCard?.example || ""}
               onChangeText={(t) =>
-                setEditCard((c) => c && { ...c, example: t })
+                setEditCard((c: any) => c && { ...c, example: t })
               }
             />
             <TextInput
@@ -1024,8 +1035,10 @@ export default function CardDetail() {
               ]}
               placeholder={TEXT.card_image[lang]}
               placeholderTextColor={theme.subText || "#888"}
-              value={editCard?.image || ""}
-              onChangeText={(t) => setEditCard((c) => c && { ...c, image: t })}
+              value={editCard?.image_url || ""}
+              onChangeText={(t) =>
+                setEditCard((c: any) => c && { ...c, image_url: t })
+              }
             />
             <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
               <TouchableOpacity
@@ -1102,8 +1115,6 @@ export default function CardDetail() {
   );
 }
 
-// ...styles giữ nguyên...
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   headerBox: {
@@ -1121,13 +1132,6 @@ const styles = StyleSheet.create({
     zIndex: 99,
     borderRadius: scale(16),
     padding: scale(4),
-  },
-  editSetBtn: {
-    backgroundColor: "#fff",
-    borderRadius: scale(16),
-    padding: scale(6),
-    borderWidth: 1,
-    borderColor: "#eee",
   },
   headerTitle: {
     fontSize: scale(25),
@@ -1210,17 +1214,6 @@ const styles = StyleSheet.create({
     borderRadius: scale(7),
     borderWidth: 1,
   },
-  topicChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: scale(18),
-    paddingHorizontal: scale(14),
-    paddingVertical: scale(8),
-    marginRight: scale(8),
-    marginTop: scale(2),
-    marginBottom: scale(8),
-  },
-  topicChipText: { fontWeight: "600", marginLeft: scale(6) },
   bottomBar: {
     flexDirection: "row",
     borderTopLeftRadius: scale(18),
@@ -1254,11 +1247,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  centeredModalWrapper: {
-    flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },

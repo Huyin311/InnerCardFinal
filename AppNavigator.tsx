@@ -23,8 +23,8 @@ export type RootStackParamList = {
   Signup: undefined;
   Onboarding: undefined;
   Tabs: undefined;
-  CardDetail: undefined;
-  Study: undefined;
+  CardDetail: { deckId: number };
+  Study: { deckId: number };
   GroupDetail: undefined;
   MemberGroup: undefined;
   MemberInfo: undefined;

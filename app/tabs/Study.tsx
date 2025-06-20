@@ -1,4 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useFocusEffect, RouteProp, useRoute } from "@react-navigation/native";
+// ...phần còn lại giữ nguyên
+
 import {
   View,
   Text,
@@ -17,6 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDarkMode } from "../../app/DarkModeContext";
 import { useLanguage } from "../../app/LanguageContext";
 import { lightTheme, darkTheme } from "../../app/theme";
+import { supabase } from "../../supabase/supabaseClient";
 
 // Responsive helpers
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -82,82 +86,36 @@ type Flashcard = {
 
 const flashcards: Flashcard[] = [
   {
-    front: "Coffee",
-    partOfSpeech: "noun",
-    phonetic: "/ˈkɒf.i/",
-    back: "Cà phê",
-    example: "I'd like a cup of coffee, please.",
-  },
-  {
-    front: "Bicycle",
-    partOfSpeech: "noun",
-    phonetic: "/ˈbaɪ.sɪ.kəl/",
-    back: "Xe đạp",
-    example: "He rides his bicycle to school every day.",
-  },
-  {
-    front: "Rain",
-    partOfSpeech: "noun",
-    phonetic: "/reɪn/",
-    back: "Mưa",
-    example: "The rain is very heavy today.",
-  },
-  {
-    front: "Market",
-    partOfSpeech: "noun",
-    phonetic: "/ˈmɑː.kɪt/",
-    back: "Chợ",
-    example: "She bought fresh fruit at the market.",
-  },
-  {
-    front: "Cat",
-    partOfSpeech: "noun",
-    phonetic: "/kæt/",
-    back: "Mèo",
-    example: "The cat is sleeping on the sofa.",
-  },
-  {
-    front: "Book",
-    partOfSpeech: "noun",
-    phonetic: "/bʊk/",
-    back: "Sách",
-    example: "She is reading an interesting book.",
-  },
-  {
-    front: "Teacher",
-    partOfSpeech: "noun",
-    phonetic: "/ˈtiː.tʃər/",
-    back: "Giáo viên",
-    example: "The teacher explains the lesson clearly.",
-  },
-  {
-    front: "Hospital",
-    partOfSpeech: "noun",
-    phonetic: "/ˈhɒs.pɪ.təl/",
-    back: "Bệnh viện",
-    example: "She works in a hospital.",
-  },
-  {
-    front: "Music",
-    partOfSpeech: "noun",
-    phonetic: "/ˈmjuː.zɪk/",
-    back: "Âm nhạc",
-    example: "He listens to music every night.",
-  },
-  {
     front: "Sunflower",
     partOfSpeech: "noun",
     phonetic: "/ˈsʌnˌflaʊ.ər/",
     back: "Hoa hướng dương",
     example: "A sunflower follows the sun.",
   },
-];
+]; // khi vào màn hình này hãy lấy data từ supabase để nạp vào mảng này
 
 const CARD_WIDTH = SCREEN_WIDTH * 0.83;
 const CARD_HEIGHT = scale(360);
 const SWIPE_THRESHOLD = CARD_WIDTH * 0.27;
 
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export default function Study() {
+  const route =
+    useRoute<
+      RouteProp<{ params: { deckId?: number; userId?: string } }, "params">
+    >();
+  const deckId = route.params?.deckId;
+  const userId = route.params?.userId;
+  const [, forceUpdate] = useState({});
+
   const [current, setCurrent] = useState<number>(0);
   const [flipped, setFlipped] = useState<boolean>(false);
   const [known, setKnown] = useState<number[]>([]);
@@ -171,7 +129,6 @@ export default function Study() {
   const [swipeFeedback, setSwipeFeedback] = useState<
     null | "known" | "unknown"
   >(null);
-
   const [pendingClearFeedback, setPendingClearFeedback] = useState(false);
   const [swipeX, setSwipeX] = useState(0);
   const [isCardEntering, setIsCardEntering] = useState(true);
@@ -187,6 +144,66 @@ export default function Study() {
   const theme = darkMode ? darkTheme : lightTheme;
   const CARD_COLORS = darkMode ? CARD_COLORS_DARK : CARD_COLORS_LIGHT;
   const MAIN_BG_COLOR = theme.background;
+
+  // Fetch flashcards only ONCE when deckId or userId changes
+  useFocusEffect(
+    useCallback(() => {
+      let ignore = false;
+      async function load() {
+        setCurrent(0);
+        setFlipped(false);
+        setKnown([]);
+        setUnknown([]);
+        setStarred([]);
+        setHistoryStack([]);
+        setShowCard(true);
+        if (userId) {
+          const { data, error } = await supabase
+            .from("cards")
+            .select("front_text, back_text, part_of_speech, phonetic, example");
+          if (!ignore && data && Array.isArray(data) && data.length > 0) {
+            const shuffled = shuffleArray(
+              data.map((c: any) => ({
+                front: c.front_text,
+                back: c.back_text,
+                partOfSpeech: c.part_of_speech,
+                phonetic: c.phonetic,
+                example: c.example,
+              })),
+            );
+            flashcards.splice(0, flashcards.length, ...shuffled);
+            setCurrent(0);
+            forceUpdate({});
+          }
+        } else if (deckId) {
+          const { data, error } = await supabase
+            .from("cards")
+            .select("front_text, back_text, part_of_speech, phonetic, example")
+            .eq("deck_id", deckId)
+            .order("id");
+          if (!ignore && data && Array.isArray(data) && data.length > 0) {
+            flashcards.splice(
+              0,
+              flashcards.length,
+              ...data.map((c: any) => ({
+                front: c.front_text,
+                back: c.back_text,
+                partOfSpeech: c.part_of_speech,
+                phonetic: c.phonetic,
+                example: c.example,
+              })),
+            );
+            setCurrent(0);
+            forceUpdate({});
+          }
+        }
+      }
+      load();
+      return () => {
+        ignore = true;
+      };
+    }, [deckId, userId]),
+  );
 
   const totalCards = flashcards.length;
   const isDone = current >= totalCards;
@@ -228,7 +245,9 @@ export default function Study() {
 
   useEffect(() => {
     const id = swipeAnim.x.addListener(({ value }) => setSwipeX(value));
-    return () => swipeAnim.x.removeListener(id);
+    return () => {
+      swipeAnim.x.removeListener(id);
+    };
   }, [swipeAnim.x]);
 
   useEffect(() => {
@@ -293,7 +312,7 @@ export default function Study() {
     }
   };
 
-  // Swipe logic - fix nháy thẻ cũ khi chuyển thẻ mới
+  // Swipe logic
   const animateOutAndNext = (direction: "known" | "unknown") => {
     setFeedback(direction);
     setPendingClearFeedback(true);
@@ -548,7 +567,6 @@ export default function Study() {
     <View style={[styles.bg, { backgroundColor: MAIN_BG_COLOR }]}>
       <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
       <View style={styles.container}>
-        {/* Giữ title/progress bar ở vị trí cố định */}
         <Text style={[styles.title, { color: theme.primary }]}>
           {TEXT.title[lang]} ({totalCards} {TEXT.card[lang]})
         </Text>
@@ -570,7 +588,6 @@ export default function Study() {
             />
           </View>
         </View>
-        {/* Card swipe + flip + feedback overlay */}
         <View style={{ alignItems: "center", marginBottom: scale(32) }}>
           {showCard ? (
             <Animated.View
@@ -612,7 +629,6 @@ export default function Study() {
                 ]}
                 pointerEvents={!flipped ? "auto" : "none"}
               >
-                {/* Nền thẻ lật cùng nội dung */}
                 <View
                   style={[
                     StyleSheet.absoluteFillObject,
@@ -703,7 +719,6 @@ export default function Study() {
                 ]}
                 pointerEvents={flipped ? "auto" : "none"}
               >
-                {/* Nền thẻ lật cùng nội dung */}
                 <View
                   style={[
                     StyleSheet.absoluteFillObject,
@@ -770,7 +785,6 @@ export default function Study() {
               {feedbackOverlay}
             </Animated.View>
           ) : (
-            // Placeholder giữ đúng vị trí/kích thước của card
             <View style={{ height: CARD_HEIGHT, width: CARD_WIDTH }} />
           )}
         </View>
