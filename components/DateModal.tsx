@@ -32,8 +32,22 @@ export default function DateModal({
   theme: any;
   darkMode: boolean;
 }) {
-  // Overlay màu tùy dark/light để datepicker luôn nổi bật
   const overlayBg = darkMode ? "rgba(0,0,0,0.57)" : "rgba(110,127,170,0.13)";
+  // Sửa ở đây:
+  const handleChange = (event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === "android") {
+      if (event.type === "set") {
+        onChange(event, date);
+        onRequestClose(); // đóng modal ngay khi chọn
+      } else if (event.type === "dismissed") {
+        onRequestClose(); // đóng modal khi hủy
+      }
+    } else {
+      // iOS: chỉ thay đổi giá trị, không đóng modal
+      onChange(event, date);
+    }
+  };
+
   return (
     <Modal
       transparent
@@ -56,7 +70,7 @@ export default function DateModal({
             value={value}
             mode={mode}
             display={Platform.OS === "ios" ? "inline" : "default"}
-            onChange={onChange}
+            onChange={handleChange}
             minimumDate={minimumDate}
             themeVariant={darkMode ? "dark" : "light"}
             textColor={Platform.OS === "ios" ? theme.text : undefined}

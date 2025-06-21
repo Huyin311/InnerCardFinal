@@ -13,12 +13,14 @@ import {
   ActivityIndicator,
   Platform,
   StatusBar,
+  Image,
 } from "react-native";
 import { useDarkMode } from "../DarkModeContext";
 import { useLanguage } from "../LanguageContext";
 import { lightTheme, darkTheme } from "../theme";
 import CustomTabBar from "../../components/CustomTabBar";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { supabase } from "../../supabase/supabaseClient";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -27,35 +29,29 @@ const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 const TEXT = {
   hi: { vi: "Xin chào", en: "Hi" },
   letsLearn: { vi: "Cùng bắt đầu học nào", en: "Let's start learning" },
-  learnedToday: { vi: "Đã học hôm nay", en: "Learned today" },
+  learnedToday: { vi: "Số lượt học hôm nay", en: "Today's learning count" },
   editTarget: { vi: "Sửa mục tiêu", en: "Edit target" },
-  learnMin: { vi: "phút", en: "min" },
-  streak: { vi: "chuỗi ngày", en: "day streak" },
-  keepItUp: { vi: "Tiếp tục nhé!", en: "Keep it up!" },
-  share: { vi: "Chia sẻ", en: "Share" },
-  recentActivity: { vi: "Hoạt động gần đây", en: "Recent Activity" },
+  learnMin: { vi: "lượt", en: "times" },
+  activityType: { vi: "Loại", en: "Type" },
+  group: { vi: "Nhóm", en: "Group" },
+  activityContent: { vi: "Nội dung", en: "Content" },
+  recentActivity: { vi: "Hoạt động nhóm gần đây", en: "Recent Group Activity" },
   meetup: { vi: "Giao lưu", en: "Meetup" },
   meetupDesc: {
     vi: "Trao đổi kinh nghiệm học offline",
     en: "Off-line exchange of learning experience",
   },
   editDailyTarget: {
-    vi: "Sửa mục tiêu ngày (phút)",
-    en: "Edit daily target (minutes)",
+    vi: "Sửa mục tiêu ngày (lượt)",
+    en: "Edit daily target (times)",
   },
-  enterTarget: { vi: "Nhập mục tiêu (phút)", en: "Enter target (min)" },
+  enterTarget: { vi: "Nhập mục tiêu (lượt)", en: "Enter target (times)" },
   cancel: { vi: "Huỷ", en: "Cancel" },
   save: { vi: "Lưu", en: "Save" },
   invalid: { vi: "Không hợp lệ", en: "Invalid" },
   pleaseEnterValid: {
     vi: "Vui lòng nhập số hợp lệ.",
     en: "Please enter a valid number.",
-  },
-  streakDetail: { vi: "chuỗi ngày liên tiếp!", en: "day streak!" },
-  studiedStreak: { vi: "Bạn đã học liên tiếp", en: "You have studied for" },
-  daysInARow: {
-    vi: "ngày liền! Giữ cho chuỗi tiếp tục nhé.",
-    en: "days in a row! Keep your streak going.",
   },
   close: { vi: "Đóng", en: "Close" },
 };
@@ -70,19 +66,19 @@ export default function HomeScreen() {
   const { darkMode } = useDarkMode();
   const theme = darkMode ? darkTheme : lightTheme;
   const { lang } = useLanguage();
+  const navigation = useNavigation();
 
   const [user, setUser] = useState<any>(null);
-  // target state
+  const [avatar, setAvatar] = useState<any>(null);
   const [learningToday, setLearningToday] = useState({
     learned: 0,
-    target: 60,
+    target: 0,
   });
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showAddTarget, setShowAddTarget] = useState(false);
   const [newTarget, setNewTarget] = useState("");
-  const [showStreakDetail, setShowStreakDetail] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const HEADER_MAX_HEIGHT = scale(140);
@@ -116,10 +112,10 @@ export default function HomeScreen() {
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading(true);
+      // Lấy user supabase auth
       const {
         data: { user: authUser },
       } = await supabase.auth.getUser();
-
       if (!authUser) {
         setLoading(false);
         return;
@@ -128,9 +124,7 @@ export default function HomeScreen() {
       // Lấy thông tin user
       const { data: userData } = await supabase
         .from("users")
-        .select(
-          "id, full_name, username, email, avatar_url, created_at, updated_at",
-        )
+        .select("id, full_name, username, email, avatar_url")
         .eq("id", authUser.id)
         .single();
 
@@ -143,38 +137,57 @@ export default function HomeScreen() {
         return;
       }
 
-      setUser({
-        ...userData,
-        avatar: userData.avatar_url
+      setUser(userData);
+      setAvatar(
+        userData.avatar_url
           ? { uri: userData.avatar_url }
           : require("../../assets/images/avatar.png"),
+      );
+
+      // Lấy mục tiêu ngày từ bảng setting (nếu có)
+      let target = 60;
+      const { data: setting } = await supabase
+        .from("setting")
+        .select("user_id, notification_enabled, dark_mode, language")
+        .eq("user_id", authUser.id)
+        .maybeSingle();
+      // Nếu có logic mục tiêu riêng thì fetch ở đây, còn không thì để mặc định là 60
+      // (Bạn có thể thêm cột target ở bảng setting để tuỳ chỉnh)
+
+      // Đếm số lượt học hôm nay (số bản ghi study_histories hôm nay)
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const { count: learnedCount } = await supabase
+        .from("study_histories")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", authUser.id)
+        .gte("studied_at", todayStr + "T00:00:00")
+        .lte("studied_at", todayStr + "T23:59:59");
+      setLearningToday({
+        learned: learnedCount || 0,
+        target,
       });
 
-      // Target mặc định (bạn có thể fetch từ db nếu có cột)
-      setLearningToday({ learned: 0, target: 60 });
+      // Lấy group id mà user là thành viên
+      const { data: groupMemberships } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", authUser.id);
+      const groupIds = groupMemberships?.map((g) => g.group_id) || [];
 
-      // Lấy 20 hoạt động gần nhất của user từ study_histories
-      // Kèm theo tên deck (nếu có)
-      const { data: activitiesData, error } = await supabase
-        .from("study_histories")
-        .select("id, studied_at, result, deck_id, card_id, deck:deck_id(title)")
-        .eq("user_id", authUser.id)
-        .order("studied_at", { ascending: false })
-        .limit(20);
-
-      if (error) {
-        console.log("Error fetching activities:", error);
+      // Lấy hoạt động group gần đây (nếu không có group thì bỏ qua)
+      let groupActivities: any[] = [];
+      if (groupIds.length > 0) {
+        const { data: acts } = await supabase
+          .from("group_activities")
+          .select(
+            "id, group_id, activity_type, content, created_by, created_at, groups(name)",
+          )
+          .in("group_id", groupIds)
+          .order("created_at", { ascending: false })
+          .limit(20);
+        groupActivities = acts || [];
       }
-
-      setActivities(
-        (activitiesData || []).map((item: any) => ({
-          id: item.id,
-          time: item.studied_at,
-          deck: item.deck?.title || "",
-          result: item.result,
-          card_id: item.card_id,
-        })),
-      );
+      setActivities(groupActivities);
 
       setLoading(false);
     };
@@ -191,11 +204,8 @@ export default function HomeScreen() {
     setLearningToday((prev) => ({ ...prev, target: newTargetNum }));
     setShowAddTarget(false);
     setNewTarget("");
-    // Nếu muốn lưu xuống db, thêm lệnh update cho users ở đây nếu đã có cột target
+    // Nếu muốn lưu xuống db, thêm lệnh update cho bảng setting nếu đã có cột target
   };
-
-  const handleShowStreak = () => setShowStreakDetail(true);
-  const handleHideStreak = () => setShowStreakDetail(false);
 
   if (loading) {
     return (
@@ -212,67 +222,73 @@ export default function HomeScreen() {
     );
   }
 
-  const renderAnimatedHeader = () => (
-    <Animated.View
-      style={[
-        styles.header,
-        {
-          height: headerHeight,
-          paddingTop: scale(48),
-          paddingBottom: scale(28),
-          backgroundColor: theme.primary,
-        },
-      ]}
-    >
-      <View style={{ flex: 1, position: "relative", height: scale(56) }}>
-        <Animated.Text
-          style={[
-            styles.headerHi,
-            {
-              fontSize: titleSize,
-              position: "absolute",
-              top: scale(14),
-              left: 0,
-              right: 0,
-              zIndex: 2,
-              color: theme.card,
-            },
-          ]}
-        >
-          {TEXT.hi[lang]}, {getLastWord(user?.full_name) || ""}
-        </Animated.Text>
-        <Animated.Text
-          style={[
-            styles.headerSub,
-            {
-              opacity: subOpacity,
-              position: "absolute",
-              top: scale(44),
-              left: 0,
-              right: 0,
-              zIndex: 1,
-              color: theme.card,
-            },
-          ]}
-        >
-          {TEXT.letsLearn[lang]}
-        </Animated.Text>
-      </View>
-      <Animated.Image
-        source={user?.avatar || require("../../assets/images/avatar.png")}
+  const renderAnimatedHeader = () =>
+    user && avatar ? (
+      <Animated.View
         style={[
-          styles.avatar,
+          styles.header,
           {
-            width: avatarSize,
-            height: avatarSize,
-            borderRadius: AVATAR_MAX / 2,
-            borderColor: theme.card,
-            backgroundColor: theme.card,
+            height: headerHeight,
+            paddingTop: scale(48),
+            paddingBottom: scale(28),
+            backgroundColor: theme.primary,
           },
         ]}
-      />
-    </Animated.View>
-  );
+      >
+        <View style={{ flex: 1, position: "relative", height: scale(56) }}>
+          <Animated.Text
+            style={[
+              styles.headerHi,
+              {
+                fontSize: titleSize,
+                position: "absolute",
+                top: scale(14),
+                left: 0,
+                right: 0,
+                zIndex: 2,
+                color: theme.card,
+              },
+            ]}
+          >
+            {TEXT.hi[lang]}, {getLastWord(user?.full_name) || ""}
+          </Animated.Text>
+          <Animated.Text
+            style={[
+              styles.headerSub,
+              {
+                opacity: subOpacity,
+                position: "absolute",
+                top: scale(44),
+                left: 0,
+                right: 0,
+                zIndex: 1,
+                color: theme.card,
+              },
+            ]}
+          >
+            {TEXT.letsLearn[lang]}
+          </Animated.Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Profile" as never)}
+          activeOpacity={0.8}
+        >
+          <Animated.Image
+            source={avatar}
+            style={[
+              styles.avatar,
+              {
+                width: avatarSize,
+                height: avatarSize,
+                borderRadius: AVATAR_MAX / 2,
+                borderColor: theme.card,
+                backgroundColor: theme.card,
+              },
+            ]}
+          />
+        </TouchableOpacity>
+      </Animated.View>
+    ) : null;
 
   const renderListHeader = () => (
     <View style={{ paddingBottom: scale(15) }}>
@@ -320,36 +336,6 @@ export default function HomeScreen() {
           />
         </View>
       </View>
-      <View
-        style={[
-          styles.streakWidget,
-          { backgroundColor: "#fff8ea", borderColor: "#FFF3D3" },
-        ]}
-      >
-        <TouchableOpacity style={styles.streakMain} onPress={handleShowStreak}>
-          <Ionicons name="flame" size={scale(28)} color="#FF7F00" />
-          <View style={{ marginLeft: scale(10) }}>
-            <Text style={styles.streakDays}>0-{TEXT.streak[lang]}</Text>
-            <Text style={styles.streakSub}>{TEXT.keepItUp[lang]}</Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.streakBtn}>
-          <Ionicons
-            name="share-social-outline"
-            size={scale(22)}
-            color={theme.primary}
-          />
-          <Text
-            style={{
-              marginLeft: scale(4),
-              color: theme.primary,
-              fontWeight: "bold",
-            }}
-          >
-            {TEXT.share[lang]}
-          </Text>
-        </TouchableOpacity>
-      </View>
       <Text
         style={[styles.planTitle, { marginTop: scale(32), color: theme.text }]}
       >
@@ -381,33 +367,54 @@ export default function HomeScreen() {
           <View style={styles.activityRow}>
             <Ionicons
               name={
-                item.result === "correct"
-                  ? "checkmark-circle-outline"
-                  : item.result === "incorrect"
-                    ? "close-circle-outline"
-                    : "help-circle-outline"
+                item.activity_type === "join"
+                  ? "person-add"
+                  : item.activity_type === "quiz"
+                    ? "help-circle"
+                    : item.activity_type === "announcement"
+                      ? "megaphone"
+                      : "notifications"
               }
-              size={scale(20)}
+              size={scale(22)}
               color={
-                item.result === "correct"
+                item.activity_type === "join"
                   ? theme.primary
-                  : item.result === "incorrect"
-                    ? "#FF3B30"
-                    : "#FFD600"
+                  : item.activity_type === "quiz"
+                    ? "#FFD600"
+                    : item.activity_type === "announcement"
+                      ? "#4FC3F7"
+                      : theme.subText
               }
+              style={{ marginRight: scale(7) }}
             />
-            <View style={{ flex: 1, marginLeft: scale(9) }}>
+            <View style={{ flex: 1, marginLeft: scale(6) }}>
               <Text style={[styles.activityText, { color: theme.text }]}>
-                {item.deck ? `Học thẻ trong "${item.deck}"` : "Học thẻ"}
+                <Text style={{ fontWeight: "bold" }}>
+                  {item.groups?.name || ""}
+                </Text>
                 {" - "}
-                {item.result === "correct"
-                  ? "Đúng"
-                  : item.result === "incorrect"
-                    ? "Sai"
-                    : "Bỏ qua"}
+                {item.activity_type === "join"
+                  ? "Thành viên mới tham gia"
+                  : item.activity_type === "quiz"
+                    ? "Quiz nhóm"
+                    : item.activity_type === "announcement"
+                      ? "Thông báo nhóm"
+                      : item.activity_type}
               </Text>
+              {!!item.content && (
+                <Text
+                  style={{
+                    color: theme.subText,
+                    fontSize: 13,
+                    marginTop: 1,
+                  }}
+                  numberOfLines={2}
+                >
+                  {item.content}
+                </Text>
+              )}
               <Text style={[styles.activityTime, { color: theme.subText }]}>
-                {item.time?.slice(0, 19).replace("T", " ")}
+                {item.created_at?.slice(0, 19).replace("T", " ")}
               </Text>
             </View>
           </View>
@@ -432,6 +439,17 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.bannerImg}>👨‍👩‍👧‍👦</Text>
           </View>
+        }
+        ListEmptyComponent={
+          <Text
+            style={{
+              color: theme.subText,
+              textAlign: "center",
+              marginTop: scale(20),
+            }}
+          >
+            Không có hoạt động nhóm gần đây
+          </Text>
         }
       />
 
@@ -466,50 +484,6 @@ export default function HomeScreen() {
                 <Text style={{ color: "#fff" }}>{TEXT.save[lang]}</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={showStreakDetail} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
-          <View
-            style={[styles.streakDetailModal, { backgroundColor: theme.card }]}
-          >
-            <Ionicons
-              name="flame"
-              size={scale(44)}
-              color="#FF7F00"
-              style={{ alignSelf: "center" }}
-            />
-            <Text
-              style={{
-                fontSize: scale(20),
-                fontWeight: "bold",
-                textAlign: "center",
-                marginVertical: scale(10),
-                color: theme.primary,
-              }}
-            >
-              0-{TEXT.streakDetail[lang]}
-            </Text>
-            <Text
-              style={{
-                color: theme.text,
-                textAlign: "center",
-                marginBottom: scale(20),
-              }}
-            >
-              {TEXT.studiedStreak[lang]} 0 {TEXT.daysInARow[lang]}
-            </Text>
-            <TouchableOpacity
-              style={[
-                styles.modalBtn,
-                { backgroundColor: theme.primary, alignSelf: "center" },
-              ]}
-              onPress={handleHideStreak}
-            >
-              <Text style={{ color: "#fff" }}>{TEXT.close[lang]}</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -585,6 +559,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(4),
     marginTop: scale(2),
     overflow: "hidden",
+    backgroundColor: "#f7f7f7",
   },
   progressBar: {
     height: scale(6),
@@ -597,44 +572,10 @@ const styles = StyleSheet.create({
     marginTop: scale(34),
     marginBottom: scale(8),
   },
-  streakWidget: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginHorizontal: scale(24),
-    marginTop: scale(28),
-    padding: scale(14),
-    borderRadius: scale(16),
-    borderWidth: 1,
-  },
-  streakMain: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  streakDays: {
-    fontWeight: "bold",
-    fontSize: scale(16),
-    color: "#FF7F00",
-  },
-  streakSub: {
-    fontSize: scale(13),
-    color: "#C88325",
-    marginTop: scale(2),
-  },
-  streakBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: scale(10),
-    paddingVertical: scale(7),
-    paddingHorizontal: scale(13),
-    borderWidth: 1,
-    borderColor: "#E2D0B6",
-  },
   activityRow: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: scale(7),
+    alignItems: "flex-start",
+    paddingVertical: scale(10),
     borderBottomWidth: 1,
     borderColor: "#F4F4F4",
     marginHorizontal: scale(24),
@@ -703,12 +644,5 @@ const styles = StyleSheet.create({
     borderRadius: scale(8),
     marginLeft: scale(10),
     marginTop: scale(6),
-  },
-  streakDetailModal: {
-    borderRadius: scale(18),
-    padding: scale(24),
-    width: "80%",
-    alignSelf: "center",
-    alignItems: "center",
   },
 });

@@ -392,7 +392,6 @@ export default function GroupQuizCreateScreen() {
             value={startTime}
             mode="datetime"
             onChange={(_, date) => {
-              setShowStartPicker(false);
               if (date) setStartTime(date);
             }}
             minimumDate={new Date()}
@@ -405,7 +404,6 @@ export default function GroupQuizCreateScreen() {
             value={endTime}
             mode="datetime"
             onChange={(_, date) => {
-              setShowEndPicker(false);
               if (date) setEndTime(date);
             }}
             minimumDate={startTime}

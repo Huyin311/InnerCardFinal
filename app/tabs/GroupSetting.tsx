@@ -146,13 +146,6 @@ export default function GroupSettings({ navigation, route }: any) {
   // Các chức năng quản trị nhóm bổ sung (chỉ cho admin)
   const adminOptions = [
     {
-      key: "invite",
-      icon: "person-add-outline",
-      label: TEXT.invite[lang],
-      color: "#00C48C",
-      onPress: () => navigation.navigate("InviteMember", { groupId }),
-    },
-    {
       key: "statistics",
       icon: "bar-chart-outline",
       label: TEXT.statistics[lang],
@@ -211,40 +204,42 @@ export default function GroupSettings({ navigation, route }: any) {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: scale(36) }}>
-        {/* Section: General */}
-        <Text style={[styles.sectionTitle, { color: theme.primary }]}>
-          {TEXT.groupInfo[lang]}
-        </Text>
-        <TouchableOpacity
-          style={[styles.item, { backgroundColor: theme.card }]}
-          onPress={isAdmin() ? handleRenameGroup : undefined}
-          disabled={!isAdmin()}
-        >
-          <Ionicons
-            name="pencil"
-            size={scale(22)}
-            color={theme.primary}
-            style={styles.itemIcon}
-          />
-          <Text style={[styles.itemText, { color: theme.text }]}>
-            {TEXT.renameGroup[lang]}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.item, { backgroundColor: theme.card }]}
-          onPress={isAdmin() ? handleEditDescription : undefined}
-          disabled={!isAdmin()}
-        >
-          <Ionicons
-            name="document-text-outline"
-            size={scale(22)}
-            color={theme.primary}
-            style={styles.itemIcon}
-          />
-          <Text style={[styles.itemText, { color: theme.text }]}>
-            {TEXT.editDescription[lang]}
-          </Text>
-        </TouchableOpacity>
+        {/* Section: General - CHỈ owner/admin được xem */}
+        {isAdmin() && (
+          <>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+              {TEXT.groupInfo[lang]}
+            </Text>
+            <TouchableOpacity
+              style={[styles.item, { backgroundColor: theme.card }]}
+              onPress={handleRenameGroup}
+            >
+              <Ionicons
+                name="pencil"
+                size={scale(22)}
+                color={theme.primary}
+                style={styles.itemIcon}
+              />
+              <Text style={[styles.itemText, { color: theme.text }]}>
+                {TEXT.renameGroup[lang]}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.item, { backgroundColor: theme.card }]}
+              onPress={handleEditDescription}
+            >
+              <Ionicons
+                name="document-text-outline"
+                size={scale(22)}
+                color={theme.primary}
+                style={styles.itemIcon}
+              />
+              <Text style={[styles.itemText, { color: theme.text }]}>
+                {TEXT.editDescription[lang]}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* Các chức năng quản trị nhóm bổ sung */}
         {isAdmin() && (

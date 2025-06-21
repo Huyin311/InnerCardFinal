@@ -53,7 +53,7 @@ const TEXT = {
   },
   group_settings: { vi: "Cài đặt", en: "Settings" },
   group_settings_desc: { vi: "Quản lý nhóm", en: "Manage group" },
-  group_quiz: { vi: "Tạo bài kiểm tra", en: "Create Quiz" },
+  group_quiz: { vi: "Bài kiểm tra", en: "Quiz" },
   group_quiz_desc: {
     vi: "Tạo bài quiz cho nhóm",
     en: "Create a quiz for the group",

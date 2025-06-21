@@ -22,7 +22,8 @@ import GroupDeckDetail from "./app/tabs/GroupDeckDetail";
 import EditDeck from "./app/tabs/EditDeck";
 import GroupStatistic from "./app/tabs/GroupStatistic";
 import GroupPermission from "./app/tabs/GroupPermission";
-
+import GroupQuizDoScreen from "./app/tabs/GroupQuizDoScreen";
+import GroupQuizLeaderboardButton from "./app/tabs/GroupQuizLeaderboard";
 export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
@@ -51,6 +52,8 @@ export type RootStackParamList = {
   EditDeck: { deckId: number; onDone?: () => void };
   GroupStatistic: { groupId: number };
   GroupPermission: { groupId: number };
+  GroupQuizDoScreen: { groupId: number };
+  GroupQuizLeaderboard: {};
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -89,6 +92,7 @@ export default function AppNavigator() {
         <Stack.Screen name="EditDeck" component={EditDeck} />
         <Stack.Screen name="GroupStatistic" component={GroupStatistic} />
         <Stack.Screen name="GroupPermission" component={GroupPermission} />
+        <Stack.Screen name="GroupQuizDoScreen" component={GroupQuizDoScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

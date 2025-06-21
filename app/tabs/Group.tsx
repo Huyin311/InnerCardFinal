@@ -104,6 +104,9 @@ export default function Group() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Avatar state
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+
   // Modal tạo nhóm
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [newGroup, setNewGroup] = useState({
@@ -138,8 +141,27 @@ export default function Group() {
 
   useEffect(() => {
     fetchGroups();
+    fetchUserAvatar();
     // eslint-disable-next-line
   }, [userId]);
+
+  // Fetch user avatar for top bar
+  async function fetchUserAvatar() {
+    if (!userId) {
+      setUserAvatar(null);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("users")
+      .select("avatar_url")
+      .eq("id", userId)
+      .maybeSingle();
+    if (data && data.avatar_url) {
+      setUserAvatar(data.avatar_url);
+    } else {
+      setUserAvatar(null);
+    }
+  }
 
   async function fetchGroups() {
     if (!userId) {
@@ -247,6 +269,7 @@ export default function Group() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchGroups().then(() => setRefreshing(false));
+    fetchUserAvatar();
   };
 
   const handleAddGroup = async () => {
@@ -433,6 +456,7 @@ export default function Group() {
     );
   };
 
+  // Header row: lấy avatar user và chuyển màn ProfileScreen khi nhấn avatar
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
@@ -442,9 +466,16 @@ export default function Group() {
         <Text style={[styles.title, { color: theme.text }]}>
           {TEXT.group[lang]}
         </Text>
-        <TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Profile" as never)}
+          activeOpacity={0.82}
+        >
           <Image
-            source={require("../../assets/images/avatar.png")}
+            source={
+              userAvatar
+                ? { uri: userAvatar }
+                : require("../../assets/images/avatar.png")
+            }
             style={styles.avatar}
           />
         </TouchableOpacity>
@@ -852,13 +883,7 @@ export default function Group() {
             >
               {createdJoinCode}
             </Text>
-            <View style={{ alignItems: "center", marginVertical: scale(18) }}>
-              <QRCode
-                value={qrValue}
-                size={scale(150)}
-                backgroundColor="transparent"
-              />
-            </View>
+
             <TouchableOpacity
               style={[
                 styles.modalBtn,

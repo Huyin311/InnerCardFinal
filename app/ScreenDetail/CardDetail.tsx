@@ -80,7 +80,7 @@ const TEXT = {
     vi: "Bộ thẻ này chưa có thẻ nào",
     en: "This set has no cards yet",
   },
-  edit_set: { vi: "Chỉnh sửa bộ thẻ", en: "Edit Card Set" },
+  edit_set: { vi: "Chỉnh sửa", en: "Edit Info" },
   set_name: { vi: "Tên bộ thẻ", en: "Set Name" },
   set_desc: { vi: "Mô tả bộ thẻ", en: "Set Description" },
   add: { vi: "Thêm", en: "Add" },

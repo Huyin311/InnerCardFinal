@@ -129,10 +129,29 @@ const TEXT = {
   tab_mine: { vi: "Của tôi", en: "Mine" },
   tab_saved: { vi: "Đã lưu", en: "Saved" },
   cards: { vi: "thẻ", en: "cards" },
+  shared: { vi: "Được chia sẻ", en: "Shared" },
 };
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
+
+// Các icon và màu cho từng bộ thẻ theo index
+const CARD_SET_ICONS = [
+  { icon: "albums", color: "#FF8A65" },
+  { icon: "book", color: "#4FC3F7" },
+  { icon: "bulb", color: "#FFD54F" },
+  { icon: "flask", color: "#81C784" },
+  { icon: "planet", color: "#BA68C8" },
+  { icon: "aperture", color: "#E57373" },
+  { icon: "school", color: "#AED581" },
+  { icon: "rocket", color: "#FFD740" },
+  { icon: "trophy", color: "#7986CB" },
+  { icon: "medal", color: "#F06292" },
+];
+
+function getCardSetIcon(idx: number) {
+  return CARD_SET_ICONS[idx % CARD_SET_ICONS.length];
+}
 
 export default function Card() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -159,6 +178,7 @@ export default function Card() {
 
   const [cardSets, setCardSets] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
 
   const overlayAnim = useRef(new Animated.Value(0)).current;
   const contentAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -174,7 +194,7 @@ export default function Card() {
     id: "",
   });
 
-  // Fetch user & decks, username
+  // LẤY TẤT CẢ BỘ THẺ: của tôi + được share vào group tôi tham gia (không trùng)
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -186,62 +206,52 @@ export default function Card() {
       if (!authUser) {
         setLoading(false);
         Alert.alert("Lỗi xác thực", "Không thể lấy thông tin người dùng!");
-        console.error("Không thể lấy thông tin người dùng!");
         return;
       }
       setUser(authUser);
-      // Fetch decks, với users:users(username) để lấy username tác giả
-      const { data: decksData, error: decksError } = await supabase
-        .from("decks")
-        .select(
-          "id, title, description, created_at, user_id, users:users(username)",
-        )
-        .eq("user_id", authUser.id)
-        .order("created_at", { ascending: false });
+
+      // Fetch avatar
+      const { data: avatarData } = await supabase
+        .from("users")
+        .select("avatar_url")
+        .eq("id", authUser.id)
+        .maybeSingle();
+      setUserAvatar(avatarData?.avatar_url || null);
+
+      // LẤY TẤT CẢ BỘ THẺ: của tôi + được share vào group tôi tham gia (không trùng)
+      // Sử dụng truy vấn SQL raw
+      const { data: decksRaw, error: decksError } = await supabase.rpc(
+        "get_all_decks_for_user",
+        { uid: authUser.id },
+      );
       if (decksError) throw new Error(decksError.message);
 
-      // Fetch card count cho mỗi deck
+      // Đếm số thẻ cho mỗi bộ
       let decksWithCount = await Promise.all(
-        (decksData || []).map(async (deck) => {
-          const { count, error: cardsError } = await supabase
+        (decksRaw || []).map(async (deck: any) => {
+          const { count } = await supabase
             .from("cards")
             .select("id", { count: "exact", head: true })
             .eq("deck_id", deck.id);
-          if (cardsError) {
-            Alert.alert("Lỗi lấy số thẻ", cardsError.message);
-            console.error("Lỗi lấy số thẻ:", cardsError);
-          }
           return {
             id: String(deck.id),
             title: deck.title,
-            username:
-              (deck.users && typeof deck.users === "object"
-                ? deck.users.username
-                : "") ?? "",
+            username: deck.username ?? "",
             totalCards: count || 0,
-            image: require("../../assets/images/avatar.png"),
             description: deck.description,
             isSaved: false,
             createdAt: deck.created_at ? new Date(deck.created_at) : new Date(),
             user_id: deck.user_id,
+            shared: deck.user_id !== authUser.id, // Nếu không phải mình là owner thì là shared
           };
         }),
       );
       setCardSets(decksWithCount);
-
-      // Log liên kết cardSets
-      console.log("Fetched cardSets:");
-      decksWithCount.forEach((cs) =>
-        console.log(
-          `deck_id=${cs.id}, user_id=${cs.user_id}, username=${cs.username}, title=${cs.title}, createdAt=${cs.createdAt}`,
-        ),
-      );
     } catch (err: any) {
       Alert.alert(
         "Lỗi hệ thống",
         err?.message || "Đã xảy ra lỗi không xác định",
       );
-      console.error("Lỗi hệ thống:", err);
     }
     setLoading(false);
   };
@@ -250,23 +260,10 @@ export default function Card() {
     fetchData();
   }, []);
 
-  // Log lại mỗi khi cardSets thay đổi
-  useEffect(() => {
-    if (cardSets?.length) {
-      console.log("cardSets state updated:");
-      cardSets.forEach((cs) =>
-        console.log(
-          `deck_id=${cs.id}, user_id=${cs.user_id}, username=${cs.username}, title=${cs.title}, createdAt=${cs.createdAt}`,
-        ),
-      );
-    }
-  }, [cardSets]);
-
   useEffect(() => {
     setSelectedTab(TABS[0]);
   }, [lang]);
 
-  // Modal animation
   useEffect(() => {
     if (addModalVisible || editModal.visible) {
       Animated.parallel([
@@ -303,11 +300,12 @@ export default function Card() {
     contentAnim,
   ]);
 
-  // Filter cardSets
+  const allCardSets = cardSets;
+
   const filterCardSets = () => {
-    let result = [...cardSets];
+    let result = [...allCardSets];
     if (selectedTab === TEXT.tab_mine[lang]) {
-      result = result.filter((set) => set.user_id === user?.id);
+      result = result.filter((set) => set.user_id === user?.id && !set.shared);
     }
     if (selectedTab === TEXT.tab_saved[lang]) {
       result = result.filter((set) => set.isSaved);
@@ -336,7 +334,6 @@ export default function Card() {
     setRefreshing(false);
   };
 
-  // Sau khi thêm mới, luôn gọi fetchData lại để đảm bảo đồng bộ DB/state
   const handleAddCardSet = async () => {
     if (!newCardSet.title.trim()) {
       Alert.alert(TEXT.info_missing[lang], TEXT.card_set_name_required[lang]);
@@ -354,13 +351,11 @@ export default function Card() {
         ])
         .select()
         .single();
-
       if (error) throw new Error(error.message);
 
       setNewCardSet({ title: "", description: "" });
       setAddModalVisible(false);
 
-      // Fetch lại toàn bộ decks sau khi thêm
       await fetchData();
     } catch (err: any) {
       Alert.alert(
@@ -389,7 +384,6 @@ export default function Card() {
                 .eq("id", id);
               if (error) throw new Error(error.message);
 
-              // Fetch lại toàn bộ decks sau khi xoá
               await fetchData();
             } catch (err: any) {
               Alert.alert(
@@ -432,7 +426,6 @@ export default function Card() {
       if (error) throw new Error(error.message);
 
       setEditModal({ visible: false, cardSetId: "" });
-      // Fetch lại toàn bộ decks sau khi sửa
       await fetchData();
     } catch (err: any) {
       Alert.alert("Lỗi cập nhật", err?.message || "Không thể cập nhật bộ thẻ");
@@ -440,7 +433,6 @@ export default function Card() {
     }
   };
 
-  // ====== UI Render ======
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
@@ -450,9 +442,15 @@ export default function Card() {
         <Text style={[styles.title, { color: theme.text }]}>
           {TEXT.your_card_sets[lang]}
         </Text>
-        <TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Profile" as never)}
+        >
           <Image
-            source={require("../../assets/images/avatar.png")}
+            source={
+              userAvatar
+                ? { uri: userAvatar }
+                : require("../../assets/images/avatar.png")
+            }
             style={styles.avatar}
           />
         </TouchableOpacity>
@@ -543,134 +541,155 @@ export default function Card() {
               flexGrow: 1,
               minHeight: scale(220),
             }}
-            renderItem={({ item }) => (
-              <View style={styles.cardItemBox}>
-                <TouchableOpacity
-                  style={[
-                    styles.cardItem,
-                    {
-                      backgroundColor: theme.card,
-                      shadowColor: theme.subText,
-                    },
-                  ]}
-                  onPress={() =>
-                    navigation.navigate("CardDetail", { deckId: item.id })
-                  }
-                  activeOpacity={0.8}
-                >
-                  <View
+            renderItem={({ item, index }) => {
+              const allIndex = allCardSets.findIndex((cs) => cs.id === item.id);
+              const { icon, color } = getCardSetIcon(allIndex);
+              return (
+                <View style={styles.cardItemBox}>
+                  <TouchableOpacity
                     style={[
-                      styles.cardImageBox,
-                      { backgroundColor: theme.section },
+                      styles.cardItem,
+                      {
+                        backgroundColor: theme.card,
+                        shadowColor: theme.subText,
+                      },
                     ]}
+                    onPress={() =>
+                      navigation.navigate("CardDetail", { deckId: item.id })
+                    }
+                    activeOpacity={0.8}
                   >
-                    <Image
-                      source={item.image}
-                      style={styles.cardImagePlaceholder}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <MarqueeText
-                      text={item.title}
-                      style={[styles.cardTitle, { color: theme.text }]}
-                      width={SCREEN_WIDTH - scale(180)}
-                      duration={5500}
-                    />
-                    <Text
+                    <View
                       style={[
-                        styles.cardDescription,
-                        {
-                          color: theme.subText,
-                          width: SCREEN_WIDTH - scale(180),
-                        },
+                        styles.cardIconBox,
+                        { backgroundColor: color + "22" },
                       ]}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
                     >
-                      {shortText(item.description || "", 13)}
-                    </Text>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        marginTop: scale(2),
-                      }}
-                    >
-                      <Ionicons
-                        name="person"
-                        size={scale(13)}
-                        color={theme.subText}
-                      />
-                      <Text
-                        style={[styles.cardAuthor, { color: theme.subText }]}
-                      >
-                        {" "}
-                        {item.username?.length > 13
-                          ? item.username.slice(0, 13) + "..."
-                          : item.username}
-                      </Text>
+                      <Ionicons name={icon as any} size={32} color={color} />
                     </View>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        marginTop: scale(8),
-                      }}
-                    >
-                      <Ionicons
-                        name="layers-outline"
-                        size={scale(15)}
-                        color={theme.primary}
+                    <View style={{ flex: 1 }}>
+                      <MarqueeText
+                        text={item.title}
+                        style={[styles.cardTitle, { color: theme.text }]}
+                        width={SCREEN_WIDTH - scale(180)}
+                        duration={5500}
                       />
                       <Text
                         style={[
-                          styles.cardTotalCards,
-                          { color: theme.primary },
+                          styles.cardDescription,
+                          {
+                            color: theme.subText,
+                            width: SCREEN_WIDTH - scale(180),
+                          },
                         ]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
                       >
-                        {"  "}
-                        {item.totalCards} {TEXT.cards[lang]}
+                        {shortText(item.description || "", 13)}
                       </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginTop: scale(2),
+                        }}
+                      >
+                        <Ionicons
+                          name="person"
+                          size={scale(13)}
+                          color={theme.subText}
+                        />
+                        <Text
+                          style={[styles.cardAuthor, { color: theme.subText }]}
+                        >
+                          {" "}
+                          {item.username?.length > 13
+                            ? item.username.slice(0, 13) + "..."
+                            : item.username}
+                        </Text>
+                        {item.shared && (
+                          <Text
+                            style={{
+                              marginLeft: 7,
+                              color: theme.primary,
+                              fontSize: 12,
+                              fontWeight: "bold",
+                              borderWidth: 1,
+                              borderColor: theme.primary,
+                              borderRadius: 6,
+                              paddingHorizontal: 7,
+                              paddingVertical: 1,
+                            }}
+                          >
+                            {TEXT.shared[lang]}
+                          </Text>
+                        )}
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginTop: scale(8),
+                        }}
+                      >
+                        <Ionicons
+                          name="layers-outline"
+                          size={scale(15)}
+                          color={theme.primary}
+                        />
+                        <Text
+                          style={[
+                            styles.cardTotalCards,
+                            { color: theme.primary },
+                          ]}
+                        >
+                          {"  "}
+                          {item.totalCards} {TEXT.cards[lang]}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                  <TouchableOpacity
-                    style={{ marginLeft: scale(12) }}
-                    onPress={() => toggleSaveCardSet(item.id)}
-                  >
-                    <MaterialIcons
-                      name={item.isSaved ? "bookmark" : "bookmark-border"}
-                      size={scale(25)}
-                      color={item.isSaved ? "#FFD600" : theme.subText}
-                    />
+                    <TouchableOpacity
+                      style={{ marginLeft: scale(12) }}
+                      onPress={() => toggleSaveCardSet(item.id)}
+                    >
+                      <MaterialIcons
+                        name={item.isSaved ? "bookmark" : "bookmark-border"}
+                        size={scale(25)}
+                        color={item.isSaved ? "#FFD600" : theme.subText}
+                      />
+                    </TouchableOpacity>
+                    {!item.shared && (
+                      <>
+                        <TouchableOpacity
+                          style={{ marginLeft: scale(2), padding: scale(6) }}
+                          onPress={() => openEditModal(item)}
+                        >
+                          <Feather
+                            name="edit"
+                            size={scale(20)}
+                            color={theme.primary}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={{ marginLeft: scale(2), padding: scale(6) }}
+                          onPress={() => handleDeleteCardSet(item.id)}
+                        >
+                          <Feather
+                            name="trash-2"
+                            size={scale(19)}
+                            color={
+                              deletingId === item.id
+                                ? theme.danger || "#e74c3c"
+                                : theme.subText
+                            }
+                          />
+                        </TouchableOpacity>
+                      </>
+                    )}
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ marginLeft: scale(2), padding: scale(6) }}
-                    onPress={() => openEditModal(item)}
-                  >
-                    <Feather
-                      name="edit"
-                      size={scale(20)}
-                      color={theme.primary}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={{ marginLeft: scale(2), padding: scale(6) }}
-                    onPress={() => handleDeleteCardSet(item.id)}
-                  >
-                    <Feather
-                      name="trash-2"
-                      size={scale(19)}
-                      color={
-                        deletingId === item.id
-                          ? theme.danger || "#e74c3c"
-                          : theme.subText
-                      }
-                    />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              </View>
-            )}
+                </View>
+              );
+            }}
             ListEmptyComponent={
               <View
                 style={{
@@ -680,14 +699,7 @@ export default function Card() {
                   marginTop: scale(50),
                 }}
               >
-                <Image
-                  source={require("../../assets/images/avatar.png")}
-                  style={{
-                    width: scale(110),
-                    height: scale(110),
-                    marginBottom: scale(14),
-                  }}
-                />
+                <Ionicons name="albums" size={scale(110)} color="#C5CAE9" />
                 <Text style={{ color: theme.subText, fontSize: scale(17) }}>
                   {TEXT.no_card_set[lang]}
                 </Text>
@@ -921,20 +933,14 @@ const styles = StyleSheet.create({
     shadowRadius: scale(8),
     elevation: 3,
   },
-  cardImageBox: {
+  cardIconBox: {
     width: scale(58),
     height: scale(58),
-    borderRadius: scale(12),
+    borderRadius: scale(14),
     marginRight: scale(16),
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
-  },
-  cardImagePlaceholder: {
-    width: scale(44),
-    height: scale(44),
-    borderRadius: scale(8),
-    backgroundColor: "#D9DBE9",
+    backgroundColor: "#F3F3F3",
   },
   cardTitle: { fontSize: scale(17), fontWeight: "bold" },
   cardDescription: { fontSize: scale(13), color: "#888", marginTop: scale(2) },

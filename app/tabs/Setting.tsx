@@ -10,6 +10,8 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  Modal,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -20,6 +22,7 @@ import { lightTheme, darkTheme } from "../theme";
 import { useLanguage } from "../LanguageContext";
 import { supabase } from "../../supabase/supabaseClient";
 import { useUserId } from "../../hooks/useUserId";
+import { AuthContext } from "../../contexts/AuthContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
@@ -28,7 +31,34 @@ const TEXT = {
   header: { vi: "Cài đặt", en: "Settings" },
   profile: { vi: "Thông tin tài khoản", en: "Profile" },
   changePassword: { vi: "Đổi mật khẩu", en: "Change Password" },
-  notification: { vi: "Nhận thông báo", en: "Notification" },
+  changePasswordTitle: { vi: "Đổi mật khẩu", en: "Change Password" },
+  currentPassword: { vi: "Mật khẩu hiện tại", en: "Current password" },
+  newPassword: { vi: "Mật khẩu mới", en: "New password" },
+  confirmNewPassword: {
+    vi: "Nhập lại mật khẩu mới",
+    en: "Confirm new password",
+  },
+  passwordPlaceholder: { vi: "Nhập mật khẩu...", en: "Enter password..." },
+  changePassword_alert: {
+    vi: "Chức năng đổi mật khẩu.",
+    en: "Password change function.",
+  },
+  password_success: {
+    vi: "Đã đổi mật khẩu thành công!",
+    en: "Password changed successfully!",
+  },
+  password_failed: {
+    vi: "Đổi mật khẩu thất bại.",
+    en: "Password change failed.",
+  },
+  password_mismatch: {
+    vi: "Mật khẩu mới không khớp.",
+    en: "Passwords do not match.",
+  },
+  password_short: {
+    vi: "Mật khẩu mới phải từ 6 ký tự!",
+    en: "New password must be at least 6 characters!",
+  },
   darkMode: { vi: "Chế độ tối", en: "Dark Mode" },
   language: { vi: "Ngôn ngữ", en: "Language" },
   about: { vi: "Về ứng dụng", en: "About" },
@@ -43,10 +73,6 @@ const TEXT = {
     vi: "Quiz Battle App\nPhiên bản 1.0.0\n© 2025",
     en: "Quiz Battle App\nVersion 1.0.0\n© 2025",
   },
-  changePassword_alert: {
-    vi: "Chức năng đổi mật khẩu.",
-    en: "Password change function.",
-  },
   save_success: {
     vi: "Đã lưu cài đặt!",
     en: "Settings saved!",
@@ -55,59 +81,63 @@ const TEXT = {
     vi: "Lỗi khi lưu cài đặt.",
     en: "Failed to save settings.",
   },
+  logout_success: {
+    vi: "Đã đăng xuất.",
+    en: "Successfully logged out.",
+  },
+  save: { vi: "Lưu", en: "Save" },
+  close: { vi: "Đóng", en: "Close" },
 };
 
 export default function Setting() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const userId = useUserId();
+  const { setUser } = React.useContext(AuthContext) || {};
   const [isLoading, setIsLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
 
-  // DB state
-  const [notiEnabled, setNotiEnabled] = React.useState(true);
   const [dbDarkMode, setDbDarkMode] = React.useState(false);
   const [dbLang, setDbLang] = React.useState<"vi" | "en">("vi");
 
-  // Context/UI state
   const { darkMode, toggleDarkMode } = useDarkMode();
   const theme = darkMode ? darkTheme : lightTheme;
   const { lang, setLang } = useLanguage();
 
-  // Lấy setting từ DB khi mount
+  // Đổi mật khẩu
+  const [showChangePass, setShowChangePass] = React.useState(false);
+  const [currentPass, setCurrentPass] = React.useState("");
+  const [newPass, setNewPass] = React.useState("");
+  const [reNewPass, setReNewPass] = React.useState("");
+  const [changingPass, setChangingPass] = React.useState(false);
+
   React.useEffect(() => {
     if (!userId) return;
     let ignore = false;
     (async () => {
       setIsLoading(true);
-      // Lấy setting hiện tại
       const { data, error } = await supabase
         .from("setting")
-        .select("notification_enabled, dark_mode, language")
+        .select("dark_mode, language")
         .eq("user_id", userId)
         .single();
 
       if (!ignore) {
         if (data) {
-          setNotiEnabled(data.notification_enabled ?? true);
           setDbDarkMode(data.dark_mode ?? false);
           setDbLang(data.language === "en" ? "en" : "vi");
           if (data.language && data.language !== lang) setLang(data.language);
-          // Nếu trạng thái dark mode khác với context thì đồng bộ lại UI
           if (
             typeof data.dark_mode === "boolean" &&
             data.dark_mode !== darkMode
           )
             toggleDarkMode();
         } else {
-          // Nếu chưa có dòng setting, tạo mới dòng mặc định trên DB
           await supabase.from("setting").insert({
             user_id: userId,
-            notification_enabled: true,
             dark_mode: false,
             language: "vi",
             updated_at: new Date(),
           });
-          setNotiEnabled(true);
           setDbDarkMode(false);
           setDbLang("vi");
           if (lang !== "vi") setLang("vi");
@@ -122,15 +152,12 @@ export default function Setting() {
     // eslint-disable-next-line
   }, [userId]);
 
-  // Lưu lên DB khi đổi
   async function saveSetting(newSetting: {
-    notification_enabled?: boolean;
     dark_mode?: boolean;
     language?: string;
   }) {
     if (!userId) return;
     setSaving(true);
-    // Kiểm tra đã có row chưa
     const { data } = await supabase
       .from("setting")
       .select("id")
@@ -139,17 +166,13 @@ export default function Setting() {
 
     let result;
     if (!data) {
-      // Insert mới
       result = await supabase.from("setting").insert({
         user_id: userId,
-        notification_enabled:
-          newSetting.notification_enabled ?? notiEnabled ?? true,
         dark_mode: newSetting.dark_mode ?? dbDarkMode ?? false,
         language: newSetting.language ?? dbLang ?? "vi",
         updated_at: new Date(),
       });
     } else {
-      // Update
       result = await supabase
         .from("setting")
         .update({
@@ -161,8 +184,6 @@ export default function Setting() {
     setSaving(false);
     if (result.error) {
       Alert.alert(TEXT.save_failed[lang]);
-    } else {
-      // Alert.alert(TEXT.save_success[lang]);
     }
   }
 
@@ -170,27 +191,28 @@ export default function Setting() {
     navigation.navigate("Profile");
   }
   function handlePressChangePassword() {
-    Alert.alert(TEXT.changePassword[lang], TEXT.changePassword_alert[lang]);
+    setShowChangePass(true);
   }
   function handlePressAbout() {
     Alert.alert(TEXT.about[lang], TEXT.about_detail[lang]);
   }
-  function handlePressLogout() {
+  async function handlePressLogout() {
     Alert.alert(TEXT.logout[lang], TEXT.logout_confirm[lang], [
       { text: TEXT.cancel[lang], style: "cancel" },
       {
         text: TEXT.logout[lang],
         style: "destructive",
-        onPress: () => {
-          // Xử lý logout
+        onPress: async () => {
+          await supabase.auth.signOut();
+          if (setUser) setUser(null);
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Login" }],
+          });
+          Alert.alert(TEXT.logout_success[lang]);
         },
       },
     ]);
-  }
-
-  function onToggleNotification(val: boolean) {
-    setNotiEnabled(val);
-    saveSetting({ notification_enabled: val });
   }
 
   function onToggleDarkMode(val: boolean) {
@@ -201,9 +223,70 @@ export default function Setting() {
 
   function onToggleLang() {
     const newLang = dbLang === "vi" ? "en" : "vi";
-    setDbLang(newLang as "vi" | "en");
-    setLang(newLang as "vi" | "en");
+    setDbLang(newLang);
+    setLang(newLang);
     saveSetting({ language: newLang });
+  }
+
+  async function handleChangePassword() {
+    if (!currentPass || !newPass || !reNewPass) {
+      Alert.alert(TEXT.password_failed[lang], TEXT.passwordPlaceholder[lang]);
+      return;
+    }
+    if (newPass.length < 6) {
+      Alert.alert(TEXT.password_failed[lang], TEXT.password_short[lang]);
+      return;
+    }
+    if (newPass !== reNewPass) {
+      Alert.alert(TEXT.password_failed[lang], TEXT.password_mismatch[lang]);
+      return;
+    }
+    setChangingPass(true);
+
+    // 1. Lấy email hiện tại
+    let email;
+    if (supabase.auth.getUser) {
+      const { data } = await supabase.auth.getUser();
+      email = data.user?.email;
+    } else {
+      email = supabase.auth.user()?.email;
+    }
+    if (!email) {
+      setChangingPass(false);
+      Alert.alert(TEXT.password_failed[lang], "Không xác định được email!");
+      return;
+    }
+
+    // 2. Đăng nhập lại để xác thực mật khẩu cũ
+    const { error: signInErr } = await supabase.auth.signInWithPassword({
+      email,
+      password: currentPass,
+    });
+
+    if (signInErr) {
+      setChangingPass(false);
+      Alert.alert(
+        TEXT.password_failed[lang],
+        lang === "vi"
+          ? "Mật khẩu hiện tại không đúng!"
+          : "Current password is incorrect!",
+      );
+      return;
+    }
+
+    // 3. Đổi mật khẩu
+    const { error } = await supabase.auth.updateUser({ password: newPass });
+    setChangingPass(false);
+
+    if (!error) {
+      setShowChangePass(false);
+      setCurrentPass("");
+      setNewPass("");
+      setReNewPass("");
+      Alert.alert(TEXT.password_success[lang]);
+    } else {
+      Alert.alert(TEXT.password_failed[lang], error.message || "");
+    }
   }
 
   if (isLoading) {
@@ -260,24 +343,6 @@ export default function Setting() {
           </TouchableOpacity>
         </View>
         <View style={[styles.section, { backgroundColor: theme.section }]}>
-          <View style={styles.row}>
-            <Ionicons
-              name="notifications-outline"
-              size={22}
-              color={theme.primary}
-            />
-            <Text style={[styles.rowText, { color: theme.text }]}>
-              {TEXT.notification[lang]}
-            </Text>
-            <Switch
-              style={{ marginLeft: "auto" }}
-              value={notiEnabled}
-              onValueChange={onToggleNotification}
-              thumbColor={notiEnabled ? theme.primary : "#ccc"}
-              trackColor={{ false: "#ddd", true: "#B7D1FF" }}
-              disabled={saving}
-            />
-          </View>
           <View style={styles.row}>
             <Ionicons name="moon-outline" size={21} color={theme.primary} />
             <Text style={[styles.rowText, { color: theme.text }]}>
@@ -372,6 +437,74 @@ export default function Setting() {
           {TEXT.version[lang]}
         </Text>
       </ScrollView>
+
+      {/* Đổi mật khẩu modal */}
+      <Modal visible={showChangePass} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
+            <Text style={[styles.modalTitle, { color: theme.primary }]}>
+              {TEXT.changePasswordTitle[lang]}
+            </Text>
+            <TextInput
+              placeholder={TEXT.currentPassword[lang]}
+              style={styles.input}
+              value={currentPass}
+              onChangeText={setCurrentPass}
+              secureTextEntry
+              autoFocus
+              placeholderTextColor={theme.subText}
+            />
+            <TextInput
+              placeholder={TEXT.newPassword[lang]}
+              style={styles.input}
+              value={newPass}
+              onChangeText={setNewPass}
+              secureTextEntry
+              placeholderTextColor={theme.subText}
+            />
+            <TextInput
+              placeholder={TEXT.confirmNewPassword[lang]}
+              style={styles.input}
+              value={reNewPass}
+              onChangeText={setReNewPass}
+              secureTextEntry
+              placeholderTextColor={theme.subText}
+            />
+            <View style={{ flexDirection: "row", marginTop: 16 }}>
+              <TouchableOpacity
+                style={[
+                  styles.modalBtn,
+                  { backgroundColor: theme.primary, marginRight: 14 },
+                ]}
+                onPress={handleChangePassword}
+                disabled={changingPass}
+              >
+                {changingPass ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                    {TEXT.save[lang]}
+                  </Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: "#aaa" }]}
+                onPress={() => {
+                  setShowChangePass(false);
+                  setCurrentPass("");
+                  setNewPass("");
+                  setReNewPass("");
+                }}
+                disabled={changingPass}
+              >
+                <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                  {TEXT.close[lang]}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -418,5 +551,41 @@ const styles = StyleSheet.create({
     fontSize: scale(15),
     minWidth: 22,
     textAlign: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "#0009",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "86%",
+    borderRadius: 14,
+    padding: 25,
+    alignItems: "center",
+    elevation: 7,
+  },
+  modalTitle: {
+    fontWeight: "bold",
+    fontSize: 19,
+    marginBottom: 14,
+  },
+  input: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 7,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    fontSize: 15,
+    marginBottom: 10,
+    color: "#222",
+    backgroundColor: "#fff",
+  },
+  modalBtn: {
+    borderRadius: 7,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginTop: 8,
   },
 });

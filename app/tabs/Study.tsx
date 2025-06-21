@@ -568,7 +568,7 @@ export default function Study() {
       <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
       <View style={styles.container}>
         <Text style={[styles.title, { color: theme.primary }]}>
-          {TEXT.title[lang]} ({totalCards} {TEXT.card[lang]})
+          {TEXT.title[lang]}
         </Text>
         <View style={styles.progressBox}>
           <Text style={[styles.progressText, { color: theme.primary }]}>
