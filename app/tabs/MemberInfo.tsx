@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,17 +7,18 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLanguage } from "../LanguageContext";
 import { useDarkMode } from "../DarkModeContext";
 import { lightTheme, darkTheme } from "../theme";
+import { supabase } from "../../supabase/supabaseClient";
+import { useRoute, useNavigation } from "@react-navigation/native";
 
-// Responsive helpers
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
-// Đa ngữ động
 const TEXT = {
   header: { vi: "Thông tin thành viên", en: "Member info" },
   notfound: {
@@ -30,21 +31,65 @@ const TEXT = {
   email: { vi: "Email", en: "Email" },
   dateJoin: { vi: "Ngày tham gia", en: "Join date" },
   notset: { vi: "(chưa cập nhật)", en: "(not set)" },
+  loading: { vi: "Đang tải...", en: "Loading..." },
 };
 
-export default function MemberInfo({ route, navigation }: any) {
+export default function MemberInfo() {
   const { lang } = useLanguage();
   const { darkMode } = useDarkMode();
   const theme = darkMode ? darkTheme : lightTheme;
-  const { member } = route.params || {};
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  // nhận thêm role, name, avatar nếu truyền từ MemberGroup
+  const {
+    userId,
+    groupId,
+    role: paramRole,
+    name: paramName,
+    avatar: paramAvatar,
+  } = route.params || {};
 
-  const getRoleLabel = (role: string) => {
-    if (role === "owner") return TEXT.owner[lang as "vi" | "en"];
-    if (role === "admin") return TEXT.admin[lang as "vi" | "en"];
-    return TEXT.member[lang as "vi" | "en"];
+  // State lưu thông tin user
+  const [info, setInfo] = useState<any>(null);
+  // State lưu role (ưu tiên lấy từ param, nếu chưa có thì fetch)
+  const [role, setRole] = useState(paramRole || "");
+  const [loading, setLoading] = useState(true);
+
+  // Fetch info user
+  useEffect(() => {
+    supabase
+      .from("users")
+      .select("full_name, email, avatar_url, username, created_at")
+      .eq("id", userId)
+      .single()
+      .then(({ data }) => {
+        setInfo(data);
+        setLoading(false);
+      });
+  }, [userId]);
+
+  // Nếu chưa có role thì fetch từ group_members
+  useEffect(() => {
+    if (!role && groupId && userId) {
+      supabase
+        .from("group_members")
+        .select("role")
+        .eq("group_id", groupId)
+        .eq("user_id", userId)
+        .single()
+        .then(({ data }) => {
+          if (data?.role) setRole(data.role);
+        });
+    }
+  }, [role, groupId, userId]);
+
+  const getRoleLabel = (r: string) => {
+    if (r === "owner") return TEXT.owner[lang];
+    if (r === "admin") return TEXT.admin[lang];
+    return TEXT.member[lang];
   };
 
-  if (!member) {
+  if (loading)
     return (
       <SafeAreaView
         style={[styles.container, { backgroundColor: theme.background }]}
@@ -66,18 +111,50 @@ export default function MemberInfo({ route, navigation }: any) {
             />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: theme.primary }]}>
-            {TEXT.header[lang as "vi" | "en"]}
+            {TEXT.header[lang]}
           </Text>
           <View style={{ width: scale(26) }} />
         </View>
         <View style={styles.emptyContainer}>
-          <Text style={{ color: theme.text }}>
-            {TEXT.notfound[lang as "vi" | "en"]}
+          <ActivityIndicator color={theme.primary} />
+          <Text style={{ color: theme.text, marginTop: 8 }}>
+            {TEXT.loading[lang]}
           </Text>
         </View>
       </SafeAreaView>
     );
-  }
+
+  if (!info)
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+      >
+        <View
+          style={[
+            styles.header,
+            { backgroundColor: theme.section, borderBottomColor: theme.card },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => navigation?.goBack?.()}
+          >
+            <Ionicons
+              name="chevron-back"
+              size={scale(26)}
+              color={theme.primary}
+            />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: theme.primary }]}>
+            {TEXT.header[lang]}
+          </Text>
+          <View style={{ width: scale(26) }} />
+        </View>
+        <View style={styles.emptyContainer}>
+          <Text style={{ color: theme.text }}>{TEXT.notfound[lang]}</Text>
+        </View>
+      </SafeAreaView>
+    );
 
   return (
     <SafeAreaView
@@ -101,19 +178,27 @@ export default function MemberInfo({ route, navigation }: any) {
           />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.primary }]}>
-          {TEXT.header[lang as "vi" | "en"]}
+          {TEXT.header[lang]}
         </Text>
         <View style={{ width: scale(26) }} />
       </View>
       <View style={styles.content}>
-        <Image source={member.avatar} style={styles.avatar} />
+        <Image
+          source={
+            paramAvatar
+              ? paramAvatar
+              : info.avatar_url
+                ? { uri: info.avatar_url }
+                : require("../../assets/images/avatar.png")
+          }
+          style={styles.avatar}
+        />
         <Text style={[styles.name, { color: theme.primary }]}>
-          {member.name}
+          {paramName || info.full_name || TEXT.notset[lang]}
         </Text>
         <Text style={[styles.role, { color: theme.primary }]}>
-          {getRoleLabel(member.role)}
+          {getRoleLabel(role)}
         </Text>
-        {/* Thêm thông tin khác nếu muốn */}
         <View style={styles.infoRow}>
           <Ionicons
             name="mail-outline"
@@ -122,8 +207,7 @@ export default function MemberInfo({ route, navigation }: any) {
             style={{ marginRight: scale(7) }}
           />
           <Text style={[styles.infoText, { color: theme.text }]}>
-            {TEXT.email[lang as "vi" | "en"]}:{" "}
-            {TEXT.notset[lang as "vi" | "en"]}
+            {TEXT.email[lang]}: {info.email || TEXT.notset[lang]}
           </Text>
         </View>
         <View style={styles.infoRow}>
@@ -134,8 +218,10 @@ export default function MemberInfo({ route, navigation }: any) {
             style={{ marginRight: scale(7) }}
           />
           <Text style={[styles.infoText, { color: theme.text }]}>
-            {TEXT.dateJoin[lang as "vi" | "en"]}:{" "}
-            {TEXT.notset[lang as "vi" | "en"]}
+            {TEXT.dateJoin[lang]}:{" "}
+            {info.created_at
+              ? new Date(info.created_at).toLocaleDateString()
+              : TEXT.notset[lang]}
           </Text>
         </View>
       </View>
@@ -171,6 +257,7 @@ const styles = StyleSheet.create({
     height: scale(88),
     borderRadius: scale(24),
     marginBottom: scale(18),
+    backgroundColor: "#eee",
   },
   name: {
     fontSize: scale(20),

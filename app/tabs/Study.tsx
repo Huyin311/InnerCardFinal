@@ -642,23 +642,6 @@ export default function Study() {
                   disabled={swiping || isDone}
                 >
                   <TouchableOpacity
-                    style={styles.starTopLeft}
-                    onPress={(e) => {
-                      e.stopPropagation?.();
-                      setStarred((prev) =>
-                        prev.includes(current)
-                          ? prev.filter((i) => i !== current)
-                          : [...prev, current],
-                      );
-                    }}
-                  >
-                    <FontAwesome
-                      name={starred.includes(current) ? "star" : "star-o"}
-                      size={scale(26)}
-                      color={starred.includes(current) ? "#FFD600" : "#bfc8d6"}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
                     style={styles.speakerTopRight}
                     onPress={(e) => {
                       e.stopPropagation?.();

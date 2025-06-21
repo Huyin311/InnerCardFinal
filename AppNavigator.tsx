@@ -15,8 +15,13 @@ import GroupActivities from "@/app/tabs/GroupActivities";
 import GroupSetting from "./app/tabs/GroupSetting";
 import GroupQuizScreen from "./app/tabs/GroupQuizScreen";
 import GroupQuizCreateScreen from "./app/tabs/GroupQuizCreateScreen";
-import GroupQuizDetailScreen from "./app/tabs/GroupQuizDetailScreen";
 import ProfileScreen from "./app/tabs/Profile";
+import GroupCards from "./app/tabs/GroupCards";
+import ShareDeckToGroup from "./app/tabs/ShareDeckToGroup";
+import GroupDeckDetail from "./app/tabs/GroupDeckDetail";
+import EditDeck from "./app/tabs/EditDeck";
+import GroupStatistic from "./app/tabs/GroupStatistic";
+import GroupPermission from "./app/tabs/GroupPermission";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -25,16 +30,27 @@ export type RootStackParamList = {
   Tabs: undefined;
   CardDetail: { deckId: number };
   Study: { deckId: number };
-  GroupDetail: undefined;
-  MemberGroup: undefined;
-  MemberInfo: undefined;
-  GroupAnnouncements: undefined;
-  GroupActivities: undefined;
-  GroupSetting: undefined;
-  GroupQuizScreen: undefined;
-  GroupQuizCreateScreen: undefined;
-  GroupQuizDetailScreen: undefined;
-  Profile: undefined; // Đã sửa lại là Profile
+  GroupDetail: { groupId: number };
+  MemberGroup: { groupId: number };
+  MemberInfo: {
+    userId: string;
+    role: string;
+    name: string;
+    avatar: any;
+    groupId: number;
+  };
+  GroupAnnouncements: { groupId: number };
+  GroupActivities: { groupId: number };
+  GroupSetting: { groupId: number };
+  GroupQuizScreen: { groupId: number };
+  GroupQuizCreateScreen: { groupId: number };
+  Profile: undefined;
+  GroupCards: { groupId: number };
+  ShareDeckToGroup: { groupId: number; onShare?: () => void };
+  GroupDeckDetail: { groupId: number; deckId: number };
+  EditDeck: { deckId: number; onDone?: () => void };
+  GroupStatistic: { groupId: number };
+  GroupPermission: { groupId: number };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -66,11 +82,13 @@ export default function AppNavigator() {
           name="GroupQuizCreateScreen"
           component={GroupQuizCreateScreen}
         />
-        <Stack.Screen
-          name="GroupQuizDetailScreen"
-          component={GroupQuizDetailScreen}
-        />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="GroupCards" component={GroupCards} />
+        <Stack.Screen name="ShareDeckToGroup" component={ShareDeckToGroup} />
+        <Stack.Screen name="GroupDeckDetail" component={GroupDeckDetail} />
+        <Stack.Screen name="EditDeck" component={EditDeck} />
+        <Stack.Screen name="GroupStatistic" component={GroupStatistic} />
+        <Stack.Screen name="GroupPermission" component={GroupPermission} />
       </Stack.Navigator>
     </NavigationContainer>
   );

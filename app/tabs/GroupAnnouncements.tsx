@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -13,11 +13,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useDarkMode } from "../DarkModeContext";
 import { lightTheme, darkTheme } from "../theme";
 import { useLanguage } from "../LanguageContext";
+import { supabase } from "../../supabase/supabaseClient";
+import { useRoute } from "@react-navigation/native";
+import { AuthContext } from "../../contexts/AuthContext";
+import { logGroupActivity } from "../../components/utils/groupActivities";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
@@ -42,71 +47,112 @@ const TEXT = {
   },
 };
 
-const initialAnnouncements = [
-  {
-    id: "a1",
-    title: { vi: "Lịch họp tuần này", en: "This week's schedule" },
-    content: {
-      vi: "Nhóm sẽ họp vào 20:00 tối Chủ nhật, các bạn nhớ tham gia đúng giờ!",
-      en: "Group will meet at 8:00 PM on Sunday. Please join on time!",
-    },
-    createdAt: new Date("2025-06-16T10:00:00"),
-    author: "Huy Nguyen",
-  },
-  {
-    id: "a2",
-    title: { vi: "Tài liệu mới đã được cập nhật", en: "New documents updated" },
-    content: {
-      vi: "File PDF đề thi thử IELTS 2025 đã được thêm vào thư mục Tài liệu.",
-      en: "IELTS 2025 PDF mock test has been added to the Documents folder.",
-    },
-    createdAt: new Date("2025-06-15T16:30:00"),
-    author: "Lan Pham",
-  },
-  {
-    id: "a3",
-    title: { vi: "Chào mừng thành viên mới", en: "Welcome new members" },
-    content: {
-      vi: "Chúng ta vừa kết nạp thêm 3 thành viên mới! Hãy cùng chào đón các bạn nhé.",
-      en: "We have just welcomed 3 new members! Let's greet them together.",
-    },
-    createdAt: new Date("2025-06-14T08:15:00"),
-    author: "Minh Tran",
-  },
-];
-
 export default function GroupAnnouncements({ navigation }: any) {
   const { darkMode } = useDarkMode();
   const theme = darkMode ? darkTheme : lightTheme;
   const { lang } = useLanguage();
+  const route = useRoute<any>();
+  const { groupId } = route.params as { groupId: number };
+  const { user } = useContext(AuthContext) || {};
 
-  const [announcements, setAnnouncements] = useState(initialAnnouncements);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [myRole, setMyRole] = useState<string | null>(null);
+
+  // Lấy vai trò của user trong nhóm
+  useEffect(() => {
+    if (!user?.id || !groupId) return;
+    supabase
+      .from("group_members")
+      .select("role")
+      .eq("group_id", groupId)
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => setMyRole(data?.role ?? null));
+  }, [user?.id, groupId]);
+
+  // Fetch announcements từ DB
+  useEffect(() => {
+    fetchAnnouncements();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId]);
+
+  const fetchAnnouncements = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("group_announcements")
+      .select(
+        `
+        id, title, content, created_at,
+        users:created_by(full_name)
+      `,
+      )
+      .eq("group_id", groupId)
+      .order("created_at", { ascending: false });
+    if (error) {
+      setAnnouncements([]);
+      setLoading(false);
+      return;
+    }
+    const mapped = (data || []).map((item: any) => ({
+      id: "a" + item.id,
+      title: { vi: item.title, en: item.title },
+      content: { vi: item.content, en: item.content },
+      createdAt: new Date(item.created_at),
+      author: item.users?.full_name || "Thành viên",
+    }));
+    setAnnouncements(mapped);
+    setLoading(false);
+  };
 
   // Xử lý tạo thông báo mới
-  const handleCreateAnnouncement = () => {
+  const handleCreateAnnouncement = async () => {
     if (!title.trim() || !content.trim()) {
       Alert.alert(TEXT.error[lang], TEXT.errorContent[lang]);
       return;
     }
+    // Chỉ cho phép owner và admin tạo thông báo
+    if (!(myRole === "owner" || myRole === "admin")) {
+      Alert.alert(TEXT.error[lang], "Bạn không có quyền tạo thông báo.");
+      return;
+    }
     setSubmitting(true);
-    setTimeout(() => {
-      const newAnn = {
-        id: `a${Date.now()}`,
-        title: { vi: title.trim(), en: title.trim() }, // Nếu muốn đa ngữ thực sự, cần nhập riêng từng ngôn ngữ
-        content: { vi: content.trim(), en: content.trim() },
-        createdAt: new Date(),
-        author: "Bạn", // Thay bằng tên user thật nếu có
-      };
-      setAnnouncements([newAnn, ...announcements]);
+    try {
+      // 1. Thêm vào bảng group_announcements
+      const { data, error: annError } = await supabase
+        .from("group_announcements")
+        .insert({
+          group_id: groupId,
+          title: title.trim(),
+          content: content.trim(),
+          created_by: user?.id,
+        })
+        .select("id")
+        .single();
+      if (annError) throw annError;
+
+      // 2. Log activity (ghi vào group_activities)
+      await logGroupActivity({
+        group_id: groupId,
+        activity_type: "announcement",
+        content: `${user?.full_name || "Thành viên"} đã tạo thông báo: "${title.trim()}"`,
+        created_by: user?.id,
+      });
+
       setTitle("");
       setContent("");
       setShowModal(false);
       setSubmitting(false);
-    }, 500);
+      // Fetch lại danh sách
+      fetchAnnouncements();
+    } catch (e: any) {
+      Alert.alert(TEXT.error[lang], e.message || "Có lỗi xảy ra");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -134,67 +180,78 @@ export default function GroupAnnouncements({ navigation }: any) {
           {TEXT.groupAnnouncements[lang]}
         </Text>
         <View style={{ width: scale(32), alignItems: "flex-end" }}>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => setShowModal(true)}
-          >
-            <Ionicons
-              name="add-circle"
-              size={scale(26)}
-              color={theme.primary}
-            />
-          </TouchableOpacity>
+          {(myRole === "owner" || myRole === "admin") && (
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => setShowModal(true)}
+            >
+              <Ionicons
+                name="add-circle"
+                size={scale(26)}
+                color={theme.primary}
+              />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
-      <FlatList
-        data={announcements}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: scale(16) }}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.announcementCard,
-              { backgroundColor: theme.section, shadowColor: theme.primary },
-            ]}
-          >
-            <Text style={[styles.title, { color: theme.primary }]}>
-              {item.title[lang]}
-            </Text>
-            <Text style={[styles.content, { color: theme.text }]}>
-              {item.content[lang]}
-            </Text>
-            <View style={styles.metaRow}>
-              <Ionicons
-                name="person-circle-outline"
-                size={scale(16)}
-                color={theme.subText}
-              />
-              <Text style={[styles.metaText, { color: theme.subText }]}>
-                {item.author}
+
+      {loading ? (
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <ActivityIndicator size="large" color={theme.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={announcements}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ padding: scale(16) }}
+          renderItem={({ item }) => (
+            <View
+              style={[
+                styles.announcementCard,
+                { backgroundColor: theme.section, shadowColor: theme.primary },
+              ]}
+            >
+              <Text style={[styles.title, { color: theme.primary }]}>
+                {item.title[lang]}
               </Text>
-              <Ionicons
-                name="time-outline"
-                size={scale(15)}
-                color={theme.subText}
-                style={{ marginLeft: scale(10) }}
-              />
-              <Text style={[styles.metaText, { color: theme.subText }]}>
-                {item.createdAt instanceof Date
-                  ? item.createdAt.toLocaleString()
-                  : new Date(item.createdAt).toLocaleString()}
+              <Text style={[styles.content, { color: theme.text }]}>
+                {item.content[lang]}
+              </Text>
+              <View style={styles.metaRow}>
+                <Ionicons
+                  name="person-circle-outline"
+                  size={scale(16)}
+                  color={theme.subText}
+                />
+                <Text style={[styles.metaText, { color: theme.subText }]}>
+                  {item.author}
+                </Text>
+                <Ionicons
+                  name="time-outline"
+                  size={scale(15)}
+                  color={theme.subText}
+                  style={{ marginLeft: scale(10) }}
+                />
+                <Text style={[styles.metaText, { color: theme.subText }]}>
+                  {item.createdAt instanceof Date
+                    ? item.createdAt.toLocaleString()
+                    : new Date(item.createdAt).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+          )}
+          ItemSeparatorComponent={() => <View style={{ height: scale(12) }} />}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: theme.subText }]}>
+                {TEXT.noAnnouncement[lang]}
               </Text>
             </View>
-          </View>
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: scale(12) }} />}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: theme.subText }]}>
-              {TEXT.noAnnouncement[lang]}
-            </Text>
-          </View>
-        }
-      />
+          }
+        />
+      )}
 
       {/* Modal tạo thông báo */}
       <Modal

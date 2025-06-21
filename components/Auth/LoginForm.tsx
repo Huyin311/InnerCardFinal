@@ -15,8 +15,9 @@ import { Colors } from "../../constants/Colors";
 import { supabase } from "../../supabase/supabaseClient";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../../AppNavigator";
+import { Ionicons } from "@expo/vector-icons";
 
-// Responsive helpers...
+// Responsive helpers
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const isTablet = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) >= 600;
 const clamp = (v: number, min: number, max: number) =>
@@ -28,7 +29,6 @@ const scale = (size: number) => {
   const ratio = SCREEN_WIDTH / baseWidth;
   return clamp(size * ratio, size * minScale, size * maxScale);
 };
-// ----------
 
 type Props = {
   navigation: StackNavigationProp<RootStackParamList, "Login">;
@@ -46,7 +46,7 @@ export default function LoginForm({ navigation }: Props) {
       return;
     }
     setLoading(true);
-    const { error, data } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -55,7 +55,6 @@ export default function LoginForm({ navigation }: Props) {
       Alert.alert("Login failed", error.message);
       return;
     }
-    // Success! Chuyển sang màn hình chính
     navigation.replace("Tabs");
   };
 
@@ -87,9 +86,11 @@ export default function LoginForm({ navigation }: Props) {
           style={styles.eyeBtn}
           onPress={() => setShowPassword((v) => !v)}
         >
-          <Text style={{ color: Colors.light.icon, fontSize: scale(18) }}>
-            {showPassword ? "👁️" : "🙈"}
-          </Text>
+          <Ionicons
+            name={showPassword ? "eye" : "eye-off"}
+            size={scale(20)}
+            color={Colors.light.icon}
+          />
         </TouchableOpacity>
       </View>
       <TouchableOpacity style={styles.forgotBtn}>
@@ -107,17 +108,15 @@ export default function LoginForm({ navigation }: Props) {
         )}
       </TouchableOpacity>
       <View style={styles.row}>
-        <Text style={styles.grayText}> Don&#39;t have an account? </Text>
+        <Text style={styles.grayText}> Don't have an account? </Text>
         <Text style={styles.link} onPress={() => navigation.navigate("Signup")}>
           Sign up
         </Text>
       </View>
-      {/* ... phần còn lại giữ nguyên ... */}
     </KeyboardAvoidingView>
   );
 }
 
-// ... giữ nguyên phần styles của bạn ...
 // Responsive card width
 const CARD_WIDTH = clamp(Math.min(SCREEN_WIDTH * 0.92, 410), 320, 500);
 

@@ -15,6 +15,7 @@ import { Colors } from "../../constants/Colors";
 import { supabase } from "../../supabase/supabaseClient";
 import type { StackNavigationProp } from "@react-navigation/stack";
 import type { RootStackParamList } from "../../AppNavigator";
+import { Ionicons } from "@expo/vector-icons";
 
 // Responsive helpers...
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -40,6 +41,7 @@ export default function SignupForm({ navigation }: Props) {
   const [password, setPassword] = useState("");
   const [passwordAgain, setPasswordAgain] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordAgain, setShowPasswordAgain] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
@@ -54,7 +56,6 @@ export default function SignupForm({ navigation }: Props) {
     setLoading(true);
 
     try {
-      // 1. Đăng ký với Supabase Auth (KHÔNG cần truyền emailRedirectTo!)
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -79,10 +80,8 @@ export default function SignupForm({ navigation }: Props) {
         return;
       }
 
-      // 2. Lưu thông tin vào bảng users (id là uuid!)
       const userId = data.user.id;
 
-      // Kiểm tra username đã tồn tại chưa để báo lỗi đẹp
       const { data: existingUser } = await supabase
         .from("users")
         .select("id")
@@ -201,19 +200,33 @@ export default function SignupForm({ navigation }: Props) {
           style={styles.eyeBtn}
           onPress={() => setShowPassword((v) => !v)}
         >
-          <Text style={{ color: Colors.light.icon, fontSize: scale(18) }}>
-            {showPassword ? "👁️" : "🙈"}
-          </Text>
+          <Ionicons
+            name={showPassword ? "eye" : "eye-off"}
+            size={scale(20)}
+            color={Colors.light.icon}
+          />
         </TouchableOpacity>
       </View>
-      <TextInput
-        style={styles.input}
-        placeholder="Repeat Password"
-        placeholderTextColor={Colors.light.icon}
-        value={passwordAgain}
-        secureTextEntry={!showPassword}
-        onChangeText={setPasswordAgain}
-      />
+      <View style={styles.passwordRow}>
+        <TextInput
+          style={[styles.input, { flex: 1, marginBottom: 0 }]}
+          placeholder="Repeat Password"
+          placeholderTextColor={Colors.light.icon}
+          value={passwordAgain}
+          secureTextEntry={!showPasswordAgain}
+          onChangeText={setPasswordAgain}
+        />
+        <TouchableOpacity
+          style={styles.eyeBtn}
+          onPress={() => setShowPasswordAgain((v) => !v)}
+        >
+          <Ionicons
+            name={showPasswordAgain ? "eye" : "eye-off"}
+            size={scale(20)}
+            color={Colors.light.icon}
+          />
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity
         style={styles.button}
         onPress={handleSignUp}

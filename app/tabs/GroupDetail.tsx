@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,15 +11,16 @@ import {
   ToastAndroid,
   Platform,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import QRCode from "react-native-qrcode-svg";
 import { useDarkMode } from "../DarkModeContext";
 import { lightTheme, darkTheme } from "../theme";
 import { useLanguage } from "../LanguageContext";
+import { useRoute, useNavigation } from "@react-navigation/native";
+import { supabase } from "../../supabase/supabaseClient";
 
-// ==== TEXT KEYWORDS FOR MULTILINGUAL ====
 const TEXT = {
   group_qr_title: {
     vi: "Quét QR để tham gia nhóm",
@@ -82,28 +83,62 @@ const BASE_HEIGHT = 844;
 const scale = (size: number) => (SCREEN_WIDTH / BASE_WIDTH) * size;
 const verticalScale = (size: number) => (SCREEN_HEIGHT / BASE_HEIGHT) * size;
 
-// Fake group data
-const group = {
-  id: "g1",
-  name: "IELTS Speaking Club",
-  owner: "Huy Nguyen",
-  memberCount: 123,
-  cardCount: 456,
-  avatar: require("../../assets/images/avatar.png"),
-  description:
-    "Nơi mọi người luyện nói tiếng Anh, chia sẻ tài liệu, cùng nhau tiến bộ.",
-  category: "Education",
-  createdAt: new Date("2024-05-01"),
-  joinCode: "IELTS2024",
-};
-
-export default function GroupDetail({ navigation }: any) {
+export default function GroupDetail() {
   const { darkMode } = useDarkMode();
   const theme = darkMode ? darkTheme : lightTheme;
   const { lang } = useLanguage();
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
+  const { groupId } = route.params as { groupId: number };
 
-  const [showQR, setShowQR] = useState(false);
-  const qrRef = useRef<any>(null);
+  const [group, setGroup] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGroup = async () => {
+      setLoading(true);
+      // 1. Lấy group + owner
+      const { data: groupData, error } = await supabase
+        .from("groups")
+        .select(
+          `
+          *,
+          owner:owner_id(id, full_name, avatar_url)
+        `,
+        )
+        .eq("id", groupId)
+        .single();
+
+      if (error || !groupData) {
+        setLoading(false);
+        Alert.alert("Không tìm thấy nhóm này!");
+        navigation.goBack();
+        return;
+      }
+
+      // 2. Lấy số thành viên
+      const { count: memberCount } = await supabase
+        .from("group_members")
+        .select("*", { count: "exact", head: true })
+        .eq("group_id", groupId);
+
+      // 3. Lấy số bộ thẻ
+      const { count: cardCount } = await supabase
+        .from("deck_shares")
+        .select("*", { count: "exact", head: true })
+        .eq("group_id", groupId);
+
+      setGroup({
+        ...groupData,
+        ownerName: groupData.owner?.full_name,
+        ownerAvatar: groupData.owner?.avatar_url,
+        memberCount: memberCount || 1,
+        cardCount: cardCount || 0,
+      });
+      setLoading(false);
+    };
+    fetchGroup();
+  }, [groupId]);
 
   const features = [
     {
@@ -151,7 +186,8 @@ export default function GroupDetail({ navigation }: any) {
   ];
 
   const handleCopyCode = async () => {
-    await Clipboard.setStringAsync(group.joinCode);
+    if (!group?.join_code) return;
+    await Clipboard.setStringAsync(group.join_code);
     if (Platform.OS === "android") {
       ToastAndroid.show(TEXT.group_code_copy_success[lang], ToastAndroid.SHORT);
     } else {
@@ -159,35 +195,26 @@ export default function GroupDetail({ navigation }: any) {
     }
   };
 
-  const handleShowQR = () => setShowQR(true);
-  const handleHideQR = () => setShowQR(false);
-
-  // Action for each feature
   const handleFeaturePress = (key: string) => {
     switch (key) {
       case "members":
-        navigation.navigate("MemberGroup");
+        navigation.navigate("MemberGroup", { groupId });
         break;
       case "announcements":
-        navigation.navigate("GroupAnnouncements");
+        navigation.navigate("GroupAnnouncements", { groupId });
         break;
       case "cards":
-        navigation.navigate("CardDetail", { groupId: group.id });
+        navigation.navigate("GroupCards", { groupId });
         break;
       case "activities":
-        navigation.navigate("GroupActivities");
+        navigation.navigate("GroupActivities", { groupId });
         break;
       case "quiz":
-        navigation.navigate("GroupQuizScreen");
+        console.log("Go to quiz, groupId = ", groupId);
+        navigation.navigate("GroupQuizScreen", { groupId });
         break;
       case "settings":
-        navigation.navigate("GroupSetting");
-        break;
-      case "create_test":
-        Alert.alert(
-          TEXT.group_feature_new[lang],
-          TEXT.group_feature_new_detail[lang],
-        );
+        navigation.navigate("GroupSetting", { groupId });
         break;
       default:
         Alert.alert(
@@ -197,6 +224,22 @@ export default function GroupDetail({ navigation }: any) {
         break;
     }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+      >
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <ActivityIndicator size="large" color={theme.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!group) return null;
 
   return (
     <SafeAreaView
@@ -236,21 +279,30 @@ export default function GroupDetail({ navigation }: any) {
             { backgroundColor: theme.section, shadowColor: theme.primary },
           ]}
         >
-          <Image source={group.avatar} style={styles.avatar} />
+          <Image
+            source={
+              group.ownerAvatar
+                ? { uri: group.ownerAvatar }
+                : require("../../assets/images/avatar.png")
+            }
+            style={styles.avatar}
+          />
           <View style={{ marginLeft: scale(16), flex: 1 }}>
             <Text style={[styles.groupName, { color: theme.primary }]}>
               {group.name}
             </Text>
-            <Text
-              style={[styles.groupDesc, { color: theme.text }]}
-              numberOfLines={2}
-            >
-              {group.description}
-            </Text>
+            {group.description ? (
+              <Text
+                style={[styles.groupDesc, { color: theme.text }]}
+                numberOfLines={2}
+              >
+                {group.description}
+              </Text>
+            ) : null}
             <View style={styles.metaRow}>
               <Ionicons name="person" size={scale(14)} color={theme.primary} />
               <Text style={[styles.metaText, { color: theme.primary }]}>
-                {group.owner}
+                {group.ownerName}
               </Text>
               <Ionicons
                 name="people"
@@ -275,106 +327,50 @@ export default function GroupDetail({ navigation }: any) {
                 color={theme.subText}
               />
               <Text style={[styles.metaSub, { color: theme.subText }]}>
-                {TEXT.created_at[lang]} {group.createdAt.toLocaleDateString()}
+                {TEXT.created_at[lang]}{" "}
+                {group.created_at
+                  ? new Date(group.created_at).toLocaleDateString()
+                  : ""}
               </Text>
             </View>
-          </View>
-        </View>
 
-        {/* Group code + QR */}
-        <View style={styles.codeRow}>
-          <TouchableOpacity
-            style={[
-              styles.codeBox,
-              {
-                backgroundColor: darkMode ? "#232634" : "#E6ECFF",
-                borderColor: theme.primary,
-              },
-            ]}
-            activeOpacity={0.85}
-            onPress={handleCopyCode}
-          >
-            <Ionicons
-              name="key-outline"
-              size={scale(18)}
-              color={theme.primary}
-            />
-            <Text style={[styles.codeText, { color: theme.primary }]}>
-              {group.joinCode}
-            </Text>
-            <Ionicons
-              name="copy-outline"
-              size={scale(18)}
-              color={theme.primary}
-              style={{ marginLeft: scale(6) }}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.qrBtn,
-              { backgroundColor: theme.section, borderColor: theme.primary },
-            ]}
-            onPress={handleShowQR}
-          >
-            <Ionicons
-              name="qr-code-outline"
-              size={scale(23)}
-              color={theme.primary}
-            />
-            <Text style={[styles.qrText, { color: theme.primary }]}>
-              {TEXT.qr_code[lang]}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* QR modal */}
-        {showQR && (
-          <View style={styles.qrModalOverlay}>
-            <TouchableOpacity
-              style={styles.qrModalBack}
-              onPress={handleHideQR}
-            />
+            {/* Nút mã nhóm gọn hơn: nằm cạnh dòng thông tin, nhỏ, nổi bật */}
             <View
-              style={[
-                styles.qrModalCard,
-                { backgroundColor: theme.section, shadowColor: theme.primary },
-              ]}
+              style={{
+                flexDirection: "row",
+                marginTop: scale(7),
+                alignItems: "center",
+              }}
             >
-              <Text
-                style={{
-                  fontWeight: "bold",
-                  fontSize: scale(17),
-                  color: theme.primary,
-                }}
-              >
-                {TEXT.group_qr_title[lang]}
-              </Text>
-              <View style={{ marginVertical: verticalScale(18) }}>
-                <QRCode
-                  value={group.joinCode}
-                  size={scale(180)}
-                  color={theme.primary}
-                  backgroundColor={theme.section}
-                  getRef={(c) => {
-                    qrRef.current = c;
-                  }}
-                />
-              </View>
-              <Text
-                style={{ color: theme.text, marginBottom: verticalScale(12) }}
-              >
-                {TEXT.group_code_label[lang]}{" "}
-                <Text style={{ fontWeight: "bold" }}>{group.joinCode}</Text>
-              </Text>
               <TouchableOpacity
-                style={[styles.qrCloseBtn, { backgroundColor: theme.primary }]}
-                onPress={handleHideQR}
+                style={[
+                  styles.codeSmallBtn,
+                  {
+                    backgroundColor: darkMode ? "#232634" : "#E6ECFF",
+                    borderColor: theme.primary,
+                  },
+                ]}
+                activeOpacity={0.85}
+                onPress={handleCopyCode}
               >
-                <Ionicons name="close" size={scale(22)} color="#fff" />
+                <Ionicons
+                  name="key-outline"
+                  size={scale(16)}
+                  color={theme.primary}
+                />
+                <Text style={[styles.codeSmallText, { color: theme.primary }]}>
+                  {group.join_code}
+                </Text>
+                <Ionicons
+                  name="copy-outline"
+                  size={scale(15)}
+                  color={theme.primary}
+                  style={{ marginLeft: scale(4) }}
+                />
               </TouchableOpacity>
             </View>
           </View>
-        )}
+        </View>
 
         {/* Feature buttons */}
         <View style={styles.smartButtonRow}>
@@ -417,6 +413,7 @@ export default function GroupDetail({ navigation }: any) {
   );
 }
 
+// ... giữ nguyên các style khác
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
@@ -452,6 +449,7 @@ const styles = StyleSheet.create({
     width: scale(60),
     height: scale(60),
     borderRadius: scale(16),
+    backgroundColor: "#eee",
   },
   groupName: {
     fontSize: scale(17),
@@ -479,51 +477,22 @@ const styles = StyleSheet.create({
     marginLeft: scale(3),
     marginRight: scale(8),
   },
-  codeRow: {
-    marginTop: scale(10),
-    marginBottom: scale(12),
-    marginHorizontal: scale(16),
+  codeSmallBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: scale(12),
-  },
-  codeBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: scale(14),
-    paddingVertical: scale(11),
-    paddingHorizontal: scale(20),
-    flex: 1,
-    marginRight: scale(10),
-    elevation: 2,
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: scale(2) },
-    shadowRadius: scale(6),
-    borderWidth: 1.2,
-  },
-  codeText: {
-    fontWeight: "bold",
-    fontSize: scale(16),
-    letterSpacing: 2,
-    marginLeft: scale(8),
-  },
-  qrBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: scale(12),
+    borderRadius: scale(10),
+    paddingVertical: scale(4),
     paddingHorizontal: scale(12),
-    paddingVertical: scale(8),
     borderWidth: 1.1,
-    elevation: 2,
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: scale(2) },
-    shadowRadius: scale(6),
+    marginTop: 0,
+    alignSelf: "flex-start",
   },
-  qrText: {
+  codeSmallText: {
     fontWeight: "bold",
     fontSize: scale(14),
-    marginLeft: scale(4),
+    letterSpacing: 1.3,
+    marginLeft: scale(6),
+    marginRight: scale(4),
   },
   smartButtonRow: {
     flexDirection: "row",
@@ -561,38 +530,5 @@ const styles = StyleSheet.create({
   smartBtnDesc: {
     fontSize: scale(12),
     marginTop: 0,
-  },
-  qrModalOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
-    backgroundColor: "rgba(36,45,77,0.24)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 99,
-  },
-  qrModalBack: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-  },
-  qrModalCard: {
-    borderRadius: scale(22),
-    padding: scale(26),
-    alignItems: "center",
-    width: SCREEN_WIDTH * 0.77,
-    elevation: 9,
-    shadowOpacity: 0.13,
-    shadowOffset: { width: 0, height: scale(8) },
-    shadowRadius: scale(24),
-  },
-  qrCloseBtn: {
-    borderRadius: 999,
-    padding: scale(6),
-    position: "absolute",
-    top: scale(9),
-    right: scale(9),
   },
 });

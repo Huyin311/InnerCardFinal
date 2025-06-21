@@ -1,11 +1,10 @@
-import React from "react";
+import React, { useEffect, useState, useContext } from "react";
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
-  Switch,
   Dimensions,
   Alert,
   Platform,
@@ -16,43 +15,23 @@ import { Ionicons } from "@expo/vector-icons";
 import { useDarkMode } from "../DarkModeContext";
 import { useLanguage } from "../LanguageContext";
 import { lightTheme, darkTheme } from "../theme";
+import { supabase } from "../../supabase/supabaseClient";
+import { AuthContext } from "../../contexts/AuthContext";
 
-// Responsive helpers
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const isTablet = SCREEN_WIDTH >= 600;
-const clamp = (v: number, min: number, max: number) =>
-  Math.max(Math.min(v, max), min);
-const baseWidth = 375;
-const maxScale = isTablet ? 1.22 : 1.07;
-const minScale = 0.91;
-const scale = (size: number) => {
-  const ratio = SCREEN_WIDTH / baseWidth;
-  return clamp(size * ratio, size * minScale, size * maxScale);
-};
+const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
-// Đa ngữ
 const TEXT = {
   groupSettings: { vi: "Cài đặt nhóm", en: "Group Settings" },
   groupInfo: { vi: "Thông tin nhóm", en: "Group Info" },
   renameGroup: { vi: "Đổi tên nhóm", en: "Rename group" },
-  renameGroupDev: {
-    vi: "Tính năng này đang phát triển. Liên hệ Admin để đổi tên!",
-    en: "This feature is under development. Contact Admin to rename!",
-  },
+  renameSuccess: { vi: "Đã đổi tên nhóm!", en: "Group renamed!" },
   editDescription: { vi: "Đổi mô tả nhóm", en: "Edit group description" },
-  editDescriptionDev: {
-    vi: "Tính năng này đang phát triển. Liên hệ Admin để đổi mô tả!",
-    en: "This feature is under development. Contact Admin to edit description!",
-  },
+  editDescSuccess: { vi: "Đã đổi mô tả nhóm!", en: "Description updated!" },
   adminTools: { vi: "Quản trị nhóm", en: "Admin Tools" },
-  edit: { vi: "Chỉnh sửa thông tin nhóm", en: "Edit group info" },
   invite: { vi: "Mời thành viên", en: "Invite members" },
   statistics: { vi: "Thống kê nhóm", en: "Group statistics" },
   permission: { vi: "Quản lý quyền", en: "Manage permissions" },
-  privacy: { vi: "Quyền riêng tư", en: "Privacy" },
-  publicGroup: { vi: "Công khai nhóm", en: "Make group public" },
-  notifications: { vi: "Thông báo", en: "Notifications" },
-  groupNotif: { vi: "Nhận thông báo nhóm", en: "Receive group notifications" },
   dangerZone: { vi: "Nguy hiểm", en: "Danger zone" },
   leave: { vi: "Rời nhóm", en: "Leave group" },
   leaveConfirm: {
@@ -60,70 +39,149 @@ const TEXT = {
     en: "Are you sure you want to leave the group?",
   },
   cancel: { vi: "Huỷ", en: "Cancel" },
-  leaveSuccess: { vi: "Đã rời nhóm (mẫu)", en: "Left group (demo)" },
-  devSample: { vi: "chức năng mẫu", en: "sample feature" },
-  editGroup: { vi: "Chỉnh sửa thông tin nhóm", en: "Edit group info" },
-  inviteMember: { vi: "Mời thành viên", en: "Invite member" },
-  groupStats: { vi: "Thống kê nhóm", en: "Group statistics" },
-  managePerm: { vi: "Quản lý quyền", en: "Manage permissions" },
+  leaveSuccess: { vi: "Đã rời nhóm", en: "Left group" },
 };
 
-export default function GroupSettings({ navigation }: any) {
+export default function GroupSettings({ navigation, route }: any) {
   const { darkMode } = useDarkMode();
   const theme = darkMode ? darkTheme : lightTheme;
   const { lang } = useLanguage();
+  const { user } = useContext(AuthContext) || {};
+  const groupId = route?.params?.groupId;
 
-  // Dummy state for switchers
-  const [isNotif, setIsNotif] = React.useState(true);
-  const [isPublic, setIsPublic] = React.useState(false);
+  const [group, setGroup] = useState<any>(null);
+  const [member, setMember] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Các chức năng quản trị nhóm bổ sung
+  useEffect(() => {
+    fetchData();
+  }, [groupId, user?.id]);
+
+  async function fetchData() {
+    setLoading(true);
+    const { data: groupData } = await supabase
+      .from("groups")
+      .select("*")
+      .eq("id", groupId)
+      .single();
+    setGroup(groupData);
+
+    // Lấy member role
+    if (user?.id) {
+      const { data: memberData } = await supabase
+        .from("group_members")
+        .select("*")
+        .eq("group_id", groupId)
+        .eq("user_id", user.id)
+        .single();
+      setMember(memberData);
+    }
+    setLoading(false);
+  }
+
+  // Đổi tên nhóm (owner/admin)
+  const handleRenameGroup = () => {
+    if (!isAdmin()) return;
+    Alert.prompt(
+      TEXT.renameGroup[lang],
+      TEXT.renameGroup[lang],
+      async (newName) => {
+        if (!newName) return;
+        await supabase
+          .from("groups")
+          .update({ name: newName })
+          .eq("id", groupId);
+        fetchData();
+        showMsg(TEXT.renameSuccess[lang]);
+      },
+      "plain-text",
+      group?.name,
+    );
+  };
+
+  // Đổi mô tả nhóm (owner/admin)
+  const handleEditDescription = () => {
+    if (!isAdmin()) return;
+    Alert.prompt(
+      TEXT.editDescription[lang],
+      TEXT.editDescription[lang],
+      async (desc) => {
+        if (desc == null) return;
+        await supabase
+          .from("groups")
+          .update({ description: desc })
+          .eq("id", groupId);
+        fetchData();
+        showMsg(TEXT.editDescSuccess[lang]);
+      },
+      "plain-text",
+      group?.description || "",
+    );
+  };
+
+  // Rời nhóm (không cho chủ nhóm rời)
+  const handleLeaveGroup = async () => {
+    if (member?.role === "owner") {
+      showMsg("Chủ nhóm không thể rời nhóm!");
+      return;
+    }
+    await supabase
+      .from("group_members")
+      .delete()
+      .eq("group_id", groupId)
+      .eq("user_id", user.id);
+    showMsg(TEXT.leaveSuccess[lang]);
+    navigation.goBack();
+  };
+
+  // Kiểm tra quyền admin/owner
+  const isAdmin = () => member?.role === "owner" || member?.role === "admin";
+
+  // Show message
+  function showMsg(msg: string) {
+    if (Platform.OS === "android") ToastAndroid.show(msg, ToastAndroid.SHORT);
+    else Alert.alert(msg);
+  }
+
+  // Các chức năng quản trị nhóm bổ sung (chỉ cho admin)
   const adminOptions = [
-    {
-      key: "edit",
-      icon: "create-outline",
-      label: TEXT.edit[lang],
-      color: theme.primary,
-      onPress: (navigation: any) =>
-        Alert.alert(
-          TEXT.editGroup[lang],
-          `${TEXT.devSample[lang]} (${TEXT.editGroup[lang]})`,
-        ),
-    },
     {
       key: "invite",
       icon: "person-add-outline",
       label: TEXT.invite[lang],
       color: "#00C48C",
-      onPress: (navigation: any) =>
-        Alert.alert(
-          TEXT.inviteMember[lang],
-          `${TEXT.devSample[lang]} (${TEXT.inviteMember[lang]})`,
-        ),
+      onPress: () => navigation.navigate("InviteMember", { groupId }),
     },
     {
       key: "statistics",
       icon: "bar-chart-outline",
       label: TEXT.statistics[lang],
       color: "#FFB300",
-      onPress: (navigation: any) =>
-        Alert.alert(
-          TEXT.groupStats[lang],
-          `${TEXT.devSample[lang]} (${TEXT.groupStats[lang]})`,
-        ),
+      onPress: () => navigation.navigate("GroupStatistic", { groupId }),
     },
     {
       key: "permission",
       icon: "settings-outline",
       label: TEXT.permission[lang],
       color: "#8C54FF",
-      onPress: (navigation: any) =>
-        Alert.alert(
-          TEXT.managePerm[lang],
-          `${TEXT.devSample[lang]} (${TEXT.managePerm[lang]})`,
-        ),
+      onPress: () => navigation.navigate("GroupPermission", { groupId }),
     },
   ];
+
+  if (loading) {
+    return (
+      <SafeAreaView
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: theme.background,
+        }}
+      >
+        <Text style={{ color: theme.primary }}>Loading...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -159,9 +217,8 @@ export default function GroupSettings({ navigation }: any) {
         </Text>
         <TouchableOpacity
           style={[styles.item, { backgroundColor: theme.card }]}
-          onPress={() =>
-            Alert.alert(TEXT.renameGroup[lang], TEXT.renameGroupDev[lang])
-          }
+          onPress={isAdmin() ? handleRenameGroup : undefined}
+          disabled={!isAdmin()}
         >
           <Ionicons
             name="pencil"
@@ -175,12 +232,8 @@ export default function GroupSettings({ navigation }: any) {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.item, { backgroundColor: theme.card }]}
-          onPress={() =>
-            Alert.alert(
-              TEXT.editDescription[lang],
-              TEXT.editDescriptionDev[lang],
-            )
-          }
+          onPress={isAdmin() ? handleEditDescription : undefined}
+          disabled={!isAdmin()}
         >
           <Ionicons
             name="document-text-outline"
@@ -194,79 +247,37 @@ export default function GroupSettings({ navigation }: any) {
         </TouchableOpacity>
 
         {/* Các chức năng quản trị nhóm bổ sung */}
-        <Text style={[styles.sectionTitle, { color: theme.primary }]}>
-          {TEXT.adminTools[lang]}
-        </Text>
-        {adminOptions.map((option) => (
-          <TouchableOpacity
-            key={option.key}
-            style={[styles.item, { backgroundColor: theme.card }]}
-            activeOpacity={0.7}
-            onPress={() => option.onPress(navigation)}
-          >
-            <Ionicons
-              name={option.icon as any}
-              size={scale(22)}
-              color={option.color}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemText, { color: theme.text }]}>
-              {option.label}
+        {isAdmin() && (
+          <>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+              {TEXT.adminTools[lang]}
             </Text>
-            <Ionicons
-              name="chevron-forward"
-              size={scale(18)}
-              color={theme.subText}
-              style={{ marginLeft: "auto" }}
-            />
-          </TouchableOpacity>
-        ))}
-
-        {/* Section: Privacy */}
-        <Text style={[styles.sectionTitle, { color: theme.primary }]}>
-          {TEXT.privacy[lang]}
-        </Text>
-        <View style={[styles.item, { backgroundColor: theme.card }]}>
-          <Ionicons
-            name="lock-closed-outline"
-            size={scale(22)}
-            color="#FF647C"
-            style={styles.itemIcon}
-          />
-          <Text style={[styles.itemText, { color: theme.text }]}>
-            {TEXT.publicGroup[lang]}
-          </Text>
-          <Switch
-            value={isPublic}
-            onValueChange={setIsPublic}
-            trackColor={{ false: theme.subText, true: theme.primary }}
-            thumbColor={isPublic ? theme.primary : theme.card}
-            style={{ marginLeft: "auto" }}
-          />
-        </View>
-
-        {/* Section: Notifications */}
-        <Text style={[styles.sectionTitle, { color: theme.primary }]}>
-          {TEXT.notifications[lang]}
-        </Text>
-        <View style={[styles.item, { backgroundColor: theme.card }]}>
-          <Ionicons
-            name="notifications-outline"
-            size={scale(22)}
-            color="#FFB300"
-            style={styles.itemIcon}
-          />
-          <Text style={[styles.itemText, { color: theme.text }]}>
-            {TEXT.groupNotif[lang]}
-          </Text>
-          <Switch
-            value={isNotif}
-            onValueChange={setIsNotif}
-            trackColor={{ false: theme.subText, true: theme.primary }}
-            thumbColor={isNotif ? theme.primary : theme.card}
-            style={{ marginLeft: "auto" }}
-          />
-        </View>
+            {adminOptions.map((option) => (
+              <TouchableOpacity
+                key={option.key}
+                style={[styles.item, { backgroundColor: theme.card }]}
+                activeOpacity={0.7}
+                onPress={option.onPress}
+              >
+                <Ionicons
+                  name={option.icon as any}
+                  size={scale(22)}
+                  color={option.color}
+                  style={styles.itemIcon}
+                />
+                <Text style={[styles.itemText, { color: theme.text }]}>
+                  {option.label}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={scale(18)}
+                  color={theme.subText}
+                  style={{ marginLeft: "auto" }}
+                />
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
 
         {/* Section: Danger zone */}
         <Text style={[styles.sectionTitle, { color: "#e74c3c" }]}>
@@ -283,15 +294,7 @@ export default function GroupSettings({ navigation }: any) {
               {
                 text: TEXT.leave[lang],
                 style: "destructive",
-                onPress: () => {
-                  if (Platform.OS === "android")
-                    ToastAndroid.show(
-                      TEXT.leaveSuccess[lang],
-                      ToastAndroid.SHORT,
-                    );
-                  else Alert.alert(TEXT.leaveSuccess[lang]);
-                  navigation.goBack?.();
-                },
+                onPress: handleLeaveGroup,
               },
             ])
           }

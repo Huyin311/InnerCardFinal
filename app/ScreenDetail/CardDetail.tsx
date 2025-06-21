@@ -642,11 +642,6 @@ export default function CardDetail() {
         ]}
       >
         <TouchableOpacity
-          style={[styles.favBtn, { backgroundColor: theme.card || "#FFEFF6" }]}
-        >
-          <MaterialIcons name="star-border" size={scale(28)} color="#FF7F00" />
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.buyBtn, { backgroundColor: theme.primary }]}
           onPress={() => navigation.navigate("Study", { deckId })}
         >

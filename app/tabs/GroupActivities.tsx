@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,96 +7,171 @@ import {
   FlatList,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useDarkMode } from "../DarkModeContext";
 import { lightTheme, darkTheme } from "../theme";
 import { useLanguage } from "../LanguageContext";
+import { supabase } from "../../supabase/supabaseClient";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
-
-// Định nghĩa type cho hoạt động để tránh lỗi TS7053
-type ActivityType = "addCard" | "newMember" | "announce" | "comment";
-type Lang = "vi" | "en";
-
-const TEXT: Record<
-  ActivityType | "groupActivity" | "noActivity",
-  { vi: string; en: string }
-> = {
-  groupActivity: { vi: "Hoạt động nhóm", en: "Group Activity" },
-  noActivity: { vi: "Chưa có hoạt động nào.", en: "No activity yet." },
-  addCard: { vi: "Thêm thẻ mới", en: "Added new card" },
-  newMember: { vi: "Thành viên mới", en: "New member" },
-  announce: { vi: "Tạo thông báo", en: "Announcement" },
-  comment: { vi: "Bình luận", en: "Comment" },
-};
-
-const activities: {
-  id: string;
-  type: ActivityType;
-  detail: { vi: string; en: string };
-  time: Date;
-  icon: string;
-  color: string;
-}[] = [
-  {
-    id: "act1",
-    type: "addCard",
-    detail: {
-      vi: "Lan Pham đã thêm thẻ 'Chủ đề: Môi trường'",
-      en: "Lan Pham added card 'Topic: Environment'",
-    },
-    time: new Date("2025-06-17T20:05:00"),
-    icon: "albums",
-    color: "#00C48C",
-  },
-  {
-    id: "act2",
-    type: "newMember",
-    detail: {
-      vi: "Minh Tran đã tham gia nhóm",
-      en: "Minh Tran joined the group",
-    },
-    time: new Date("2025-06-17T15:30:00"),
-    icon: "person-add",
-    color: "#4F8CFF",
-  },
-  {
-    id: "act3",
-    type: "announce",
-    detail: {
-      vi: "Huy Nguyen đã gửi thông báo: 'Lịch họp tuần này'",
-      en: "Huy Nguyen sent announcement: 'This week's meeting schedule'",
-    },
-    time: new Date("2025-06-16T10:01:00"),
-    icon: "notifications",
-    color: "#FFB300",
-  },
-  {
-    id: "act4",
-    type: "comment",
-    detail: {
-      vi: "Lan Pham đã bình luận trong thẻ 'Chủ đề: Công việc'",
-      en: "Lan Pham commented in card 'Topic: Work'",
-    },
-    time: new Date("2025-06-15T20:40:00"),
-    icon: "chatbubble-ellipses",
-    color: "#8C54FF",
-  },
-  // ... có thể thêm nhiều hoạt động hơn
-];
-
-export default function GroupActivities({ navigation }: any) {
+export default function GroupActivities({ navigation, route }: any) {
   const { darkMode } = useDarkMode();
   const theme = darkMode ? darkTheme : lightTheme;
   const { lang } = useLanguage();
+
+  const groupId = route?.params?.groupId;
+
+  type DBActivity = {
+    id: number;
+    group_id: number;
+    activity_type: string;
+    content: string | null;
+    created_by: string | null;
+    created_at: string;
+  };
+
+  type UIActivity = {
+    id: string;
+    type: string;
+    detail: { vi: string; en: string };
+    time: Date;
+    icon: string;
+    color: string;
+  };
+
+  const activityTypeMap: Record<
+    string,
+    { icon: string; color: string; text: { vi: string; en: string } }
+  > = {
+    join: {
+      icon: "person-add",
+      color: "#4F8CFF",
+      text: {
+        vi: "Thành viên mới tham gia nhóm",
+        en: "New member joined the group",
+      },
+    },
+    quiz: {
+      icon: "help-circle",
+      color: "#00C48C",
+      text: { vi: "Làm quiz", en: "Completed quiz" },
+    },
+    announcement: {
+      icon: "notifications",
+      color: "#FFB300",
+      text: { vi: "Tạo thông báo", en: "Announcement" },
+    },
+    comment: {
+      icon: "chatbubble-ellipses",
+      color: "#8C54FF",
+      text: { vi: "Bình luận", en: "Comment" },
+    },
+    addCard: {
+      icon: "albums",
+      color: "#00C48C",
+      text: { vi: "Thêm thẻ mới", en: "Added new card" },
+    },
+    add_deck: {
+      icon: "albums",
+      color: "#2E88FF",
+      text: { vi: "Thêm bộ thẻ", en: "Added deck" },
+    },
+    remove_deck: {
+      icon: "trash",
+      color: "#FF6B6B",
+      text: { vi: "Xóa bộ thẻ", en: "Removed deck" },
+    },
+    edit_deck: {
+      icon: "create",
+      color: "#FFA726",
+      text: { vi: "Sửa bộ thẻ", en: "Edited deck" },
+    },
+    share_deck: {
+      icon: "share-social",
+      color: "#6C63FF",
+      text: { vi: "Chia sẻ bộ thẻ", en: "Shared deck" },
+    },
+    view_group_decks: {
+      icon: "albums-outline",
+      color: "#7BC67E",
+      text: { vi: "Xem danh sách bộ thẻ", en: "Viewed group decks" },
+    },
+    view_deck_detail: {
+      icon: "book-outline",
+      color: "#00B8D9",
+      text: { vi: "Xem chi tiết bộ thẻ", en: "Viewed deck detail" },
+    },
+    promote: {
+      icon: "star",
+      color: "#FFD700",
+      text: { vi: "Thăng chức thành quản trị viên", en: "Promoted to admin" },
+    },
+    demote: {
+      icon: "remove-circle",
+      color: "#B0BEC5",
+      text: { vi: "Giáng chức khỏi quản trị viên", en: "Demoted from admin" },
+    },
+    remove: {
+      icon: "person-remove",
+      color: "#FF5252",
+      text: { vi: "Xóa thành viên", en: "Removed member" },
+    },
+    default: {
+      icon: "alert",
+      color: "#888",
+      text: { vi: "Hoạt động khác", en: "Other activity" },
+    },
+  };
+
+  const TEXT = {
+    groupActivity: { vi: "Hoạt động nhóm", en: "Group Activity" },
+    noActivity: { vi: "Chưa có hoạt động nào.", en: "No activity yet." },
+  };
+
+  const [activities, setActivities] = useState<UIActivity[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!groupId) return;
+    fetchActivities();
+  }, [groupId]);
+
+  async function fetchActivities() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("group_activities")
+      .select("*")
+      .eq("group_id", groupId)
+      .order("created_at", { ascending: false });
+    if (error) {
+      setActivities([]);
+      setLoading(false);
+      return;
+    }
+    const mapped: UIActivity[] = (data || []).map((act: DBActivity) => {
+      const typeInfo =
+        activityTypeMap[act.activity_type] || activityTypeMap.default;
+      const detailText = act.content
+        ? { vi: act.content, en: act.content }
+        : typeInfo.text;
+      return {
+        id: act.id.toString(),
+        type: act.activity_type,
+        detail: detailText,
+        time: new Date(act.created_at),
+        icon: typeInfo.icon,
+        color: typeInfo.color,
+      };
+    });
+    setActivities(mapped);
+    setLoading(false);
+  }
 
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
     >
-      {/* Header */}
       <View
         style={[
           styles.header,
@@ -121,56 +196,72 @@ export default function GroupActivities({ navigation }: any) {
         </Text>
         <View style={{ width: scale(26) }} />
       </View>
-      <FlatList
-        data={activities}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: scale(18), paddingBottom: scale(32) }}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.activityCard,
-              { backgroundColor: theme.section, shadowColor: theme.primary },
-            ]}
-          >
+      {loading ? (
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator size="large" color={theme.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={activities}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{
+            padding: scale(18),
+            paddingBottom: scale(32),
+          }}
+          renderItem={({ item }) => (
             <View
               style={[
-                styles.iconBox,
-                { backgroundColor: item.color + (darkMode ? "44" : "22") },
+                styles.activityCard,
+                { backgroundColor: theme.section, shadowColor: theme.primary },
               ]}
             >
-              <Ionicons
-                name={item.icon as any}
-                size={scale(22)}
-                color={item.color}
-              />
+              <View
+                style={[
+                  styles.iconBox,
+                  { backgroundColor: item.color + (darkMode ? "44" : "22") },
+                ]}
+              >
+                <Ionicons
+                  name={item.icon as any}
+                  size={scale(22)}
+                  color={item.color}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.type, { color: theme.primary }]}>
+                  {activityTypeMap[item.type]?.text
+                    ? activityTypeMap[item.type].text[lang]
+                    : item.type}
+                </Text>
+                <Text style={[styles.detail, { color: theme.text }]}>
+                  {item.detail[lang]}
+                </Text>
+                <Text style={[styles.time, { color: theme.subText }]}>
+                  {item.time instanceof Date
+                    ? item.time.toLocaleString()
+                    : new Date(item.time).toLocaleString()}
+                </Text>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.type, { color: theme.primary }]}>
-                {TEXT[item.type][lang as Lang]}
-              </Text>
-              <Text style={[styles.detail, { color: theme.text }]}>
-                {item.detail[lang]}
-              </Text>
-              <Text style={[styles.time, { color: theme.subText }]}>
-                {item.time instanceof Date
-                  ? item.time.toLocaleString()
-                  : new Date(item.time).toLocaleString()}
+          )}
+          ItemSeparatorComponent={() => <View style={{ height: scale(12) }} />}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: theme.subText }]}>
+                {TEXT.noActivity[lang]}
               </Text>
             </View>
-          </View>
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: scale(12) }} />}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: theme.subText }]}>
-              {TEXT.noActivity[lang]}
-            </Text>
-          </View>
-        }
-      />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
