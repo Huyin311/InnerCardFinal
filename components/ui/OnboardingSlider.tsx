@@ -2,16 +2,36 @@ import React from "react";
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   Dimensions,
   TouchableOpacity,
 } from "react-native";
 import { lightTheme, darkTheme } from "../../app/theme";
 import { useDarkMode } from "../../app/DarkModeContext";
+// Import vector icons, e.g. react-native-vector-icons/MaterialCommunityIcons or similar
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
+
+// Friendly, themed icon for each slide
+const icons = [
+  {
+    name: "cards-outline",
+    colorKey: "primary",
+    backgroundKey: "section",
+  },
+  {
+    name: "clock-outline",
+    colorKey: "primary",
+    backgroundKey: "section",
+  },
+  {
+    name: "account-edit-outline",
+    colorKey: "primary",
+    backgroundKey: "section",
+  },
+];
 
 const slides = [
   {
@@ -19,21 +39,21 @@ const slides = [
     title: "Thousands of free flashcard sets",
     description:
       "Explore a wide variety of flashcard sets to help you learn any subject.",
-    image: require("../../assets/images/onboarding1.png"),
+    iconIdx: 0,
   },
   {
     key: "slide2",
     title: "Learn anytime, anywhere",
     description:
       "Practice your flashcards on the go and easily track your learning progress.",
-    image: require("../../assets/images/onboarding2.png"),
+    iconIdx: 1,
   },
   {
     key: "slide3",
     title: "Personalize your study plan",
     description:
       "Create your own flashcard sets and customize your learning for the best results.",
-    image: require("../../assets/images/onboarding3.png"),
+    iconIdx: 2,
   },
 ];
 
@@ -56,16 +76,27 @@ const OnboardingSlider: React.FC<Props> = ({ onFinish, onSignUp, onLogin }) => {
     }
   };
 
+  // Get icon config for current slide
+  const iconConfig = icons[slides[current].iconIdx];
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <TouchableOpacity style={styles.skip} onPress={onFinish}>
         <Text style={[styles.skipText, { color: theme.subText }]}>Skip</Text>
       </TouchableOpacity>
-      <Image
-        source={slides[current].image}
-        style={styles.image}
-        resizeMode="contain"
-      />
+      {/* Icon instead of image */}
+      <View
+        style={[
+          styles.iconContainer,
+          { backgroundColor: theme[iconConfig.backgroundKey] },
+        ]}
+      >
+        <MaterialCommunityIcons
+          name={iconConfig.name}
+          size={scale(90)}
+          color={theme[iconConfig.colorKey]}
+        />
+      </View>
       <Text style={[styles.title, { color: theme.text }]}>
         {slides[current].title}
       </Text>
@@ -145,11 +176,15 @@ const styles = StyleSheet.create({
   skipText: {
     fontSize: scale(16),
   },
-  image: {
-    width: SCREEN_WIDTH * 0.7,
-    height: SCREEN_WIDTH * 0.7,
+  iconContainer: {
+    width: SCREEN_WIDTH * 0.6,
+    height: SCREEN_WIDTH * 0.6,
+    borderRadius: (SCREEN_WIDTH * 0.6) / 2,
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: scale(24),
     marginBottom: scale(32),
+    alignSelf: "center",
   },
   title: {
     fontSize: scale(22),

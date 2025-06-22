@@ -77,6 +77,8 @@ export default function HomeScreen() {
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [refreshing, setRefreshing] = useState(false);
+
   const [showAddTarget, setShowAddTarget] = useState(false);
   const [newTarget, setNewTarget] = useState("");
 
@@ -109,91 +111,100 @@ export default function HomeScreen() {
     extrapolate: "clamp",
   });
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      setLoading(true);
-      // Lấy user supabase auth
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-      if (!authUser) {
-        setLoading(false);
-        return;
-      }
-
-      // Lấy thông tin user
-      const { data: userData } = await supabase
-        .from("users")
-        .select("id, full_name, username, email, avatar_url")
-        .eq("id", authUser.id)
-        .single();
-
-      if (!userData) {
-        Alert.alert(
-          "Lỗi dữ liệu",
-          "Không tìm thấy thông tin người dùng trong bảng users!",
-        );
-        setLoading(false);
-        return;
-      }
-
-      setUser(userData);
-      setAvatar(
-        userData.avatar_url
-          ? { uri: userData.avatar_url }
-          : require("../../assets/images/avatar.png"),
-      );
-
-      // Lấy mục tiêu ngày từ bảng setting (nếu có)
-      let target = 60;
-      const { data: setting } = await supabase
-        .from("setting")
-        .select("user_id, notification_enabled, dark_mode, language")
-        .eq("user_id", authUser.id)
-        .maybeSingle();
-      // Nếu có logic mục tiêu riêng thì fetch ở đây, còn không thì để mặc định là 60
-      // (Bạn có thể thêm cột target ở bảng setting để tuỳ chỉnh)
-
-      // Đếm số lượt học hôm nay (số bản ghi study_histories hôm nay)
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const { count: learnedCount } = await supabase
-        .from("study_histories")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", authUser.id)
-        .gte("studied_at", todayStr + "T00:00:00")
-        .lte("studied_at", todayStr + "T23:59:59");
-      setLearningToday({
-        learned: learnedCount || 0,
-        target,
-      });
-
-      // Lấy group id mà user là thành viên
-      const { data: groupMemberships } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .eq("user_id", authUser.id);
-      const groupIds = groupMemberships?.map((g) => g.group_id) || [];
-
-      // Lấy hoạt động group gần đây (nếu không có group thì bỏ qua)
-      let groupActivities: any[] = [];
-      if (groupIds.length > 0) {
-        const { data: acts } = await supabase
-          .from("group_activities")
-          .select(
-            "id, group_id, activity_type, content, created_by, created_at, groups(name)",
-          )
-          .in("group_id", groupIds)
-          .order("created_at", { ascending: false })
-          .limit(20);
-        groupActivities = acts || [];
-      }
-      setActivities(groupActivities);
-
+  const fetchUserData = async () => {
+    setLoading(true);
+    // Lấy user supabase auth
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    if (!authUser) {
       setLoading(false);
-    };
+      setRefreshing(false);
+      return;
+    }
 
+    // Lấy thông tin user
+    const { data: userData } = await supabase
+      .from("users")
+      .select("id, full_name, username, email, avatar_url")
+      .eq("id", authUser.id)
+      .single();
+
+    if (!userData) {
+      Alert.alert(
+        "Lỗi dữ liệu",
+        "Không tìm thấy thông tin người dùng trong bảng users!",
+      );
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    setUser(userData);
+    setAvatar(
+      userData.avatar_url
+        ? { uri: userData.avatar_url }
+        : require("../../assets/images/avatar.png"),
+    );
+
+    // Lấy mục tiêu ngày từ bảng setting (nếu có)
+    let target = 60;
+    const { data: setting } = await supabase
+      .from("setting")
+      .select(
+        "user_id, notification_enabled, dark_mode, language, daily_target",
+      )
+      .eq("user_id", authUser.id)
+      .maybeSingle();
+    if (setting?.daily_target) target = setting.daily_target;
+
+    // Đếm số lượt học hôm nay (số bản ghi study_histories hôm nay)
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const { count: learnedCount } = await supabase
+      .from("study_histories")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", authUser.id)
+      .gte("studied_at", todayStr + "T00:00:00")
+      .lte("studied_at", todayStr + "T23:59:59");
+    setLearningToday({
+      learned: learnedCount || 0,
+      target,
+    });
+
+    // Lấy group id mà user là thành viên
+    const { data: groupMemberships } = await supabase
+      .from("group_members")
+      .select("group_id")
+      .eq("user_id", authUser.id);
+    const groupIds = groupMemberships?.map((g) => g.group_id) || [];
+
+    // Lấy hoạt động group gần đây (nếu không có group thì bỏ qua)
+    let groupActivities: any[] = [];
+    if (groupIds.length > 0) {
+      const { data: acts } = await supabase
+        .from("group_activities")
+        .select(
+          "id, group_id, activity_type, content, created_by, created_at, groups(name)",
+        )
+        .in("group_id", groupIds)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      groupActivities = acts || [];
+    }
+    setActivities(groupActivities);
+
+    setLoading(false);
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
     fetchUserData();
   }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchUserData();
+  };
 
   const handleSaveTarget = async () => {
     if (!newTarget.trim() || isNaN(Number(newTarget))) {
@@ -204,23 +215,16 @@ export default function HomeScreen() {
     setLearningToday((prev) => ({ ...prev, target: newTargetNum }));
     setShowAddTarget(false);
     setNewTarget("");
-    // Nếu muốn lưu xuống db, thêm lệnh update cho bảng setting nếu đã có cột target
+    // Nếu muốn lưu xuống db, cập nhật vào bảng setting nếu đã có cột daily_target
+    if (user?.id) {
+      await supabase
+        .from("setting")
+        .upsert(
+          { user_id: user.id, daily_target: newTargetNum },
+          { onConflict: "user_id" },
+        );
+    }
   };
-
-  if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: theme.background,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <ActivityIndicator size="large" color={theme.primary} />
-      </View>
-    );
-  }
 
   const renderAnimatedHeader = () =>
     user && avatar ? (
@@ -359,6 +363,8 @@ export default function HomeScreen() {
         }}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false },
